@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, CircleHelp, Pencil, Play, Plus, RotateCcw, RotateCw, Trash2, Trophy, Users, Volume2, VolumeX, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, CircleHelp, Pencil, Play, Plus, RotateCcw, RotateCw, Trash2, Trophy, Users, X } from 'lucide-react'
 import type { GameState, Question, Quiz } from './types/quiz'
 import { storage } from './utils/localStorage'
 import { playCorrectChime, playCorrectVoice, playIncorrectVoice, playQuizCelebration } from './utils/sounds'
@@ -107,7 +107,6 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   const [rotation, setRotation] = useState(0)
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null)
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
-  const [soundEnabled, setSoundEnabled] = useState(true)
   if (!game || !quiz) return <section className="py-24 text-center"><h1 className="page-title">No active game</h1><button className="btn-primary mt-8" onClick={onSetup}>Set up a game</button></section>
   const spin = () => {
     if (isSpinning) return
@@ -129,11 +128,9 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
     setSelectedAnswer(option)
     const correct = option === activeQuestion.correctAnswer
     const finishingQuiz = game.completedQuestionIds.length + 1 === quiz.questions.length
-    if (soundEnabled) {
-      if (correct) { playCorrectChime(); playCorrectVoice() }
-      else playIncorrectVoice()
-      if (finishingQuiz) window.setTimeout(playQuizCelebration, 1200)
-    }
+    if (correct) { playCorrectChime(); playCorrectVoice() }
+    else playIncorrectVoice()
+    if (finishingQuiz) window.setTimeout(playQuizCelebration, 1200)
     onUpdate({ ...game, completedQuestionIds: [...game.completedQuestionIds, activeQuestion.id] })
   }
   const closeQuestion = () => { setActiveQuestion(null); setSelectedAnswer(null) }
@@ -155,14 +152,14 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
           {isSpinning ? <p className="text-xl font-black text-coral">Round and round…</p> : game.currentStudent ? <><p className="text-sm font-bold text-ink/45">It’s your turn</p><p className="text-3xl font-black text-coral">Student #{game.currentStudent} 🎉</p></> : <p className="text-xl font-black text-ink/45">Not selected yet</p>}
         </motion.div></AnimatePresence>
         <button className="btn-primary mt-4 w-full justify-center" onClick={spin} disabled={isSpinning}><RotateCw className={isSpinning ? 'animate-spin' : ''} size={20} /> {isSpinning ? 'Spinning…' : 'Spin the wheel'}</button>
-        <div className="mt-6 flex flex-wrap justify-center gap-2"><button className="btn-quiet text-sm" onClick={() => setSoundEnabled(value => !value)} aria-pressed={soundEnabled}>{soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />} Sound {soundEnabled ? 'on' : 'off'}</button><button className="btn-quiet text-sm" onClick={onSetup}><Pencil size={16} /> Setup</button><button className="btn-quiet text-sm text-red-600" onClick={onEnd}><X size={16} /> End</button></div>
+        <div className="mt-6 flex flex-wrap justify-center gap-2"><button className="btn-quiet text-sm" onClick={onSetup}><Pencil size={16} /> Setup</button><button className="btn-quiet text-sm text-red-600" onClick={onEnd}><X size={16} /> End</button></div>
       </section>
       <section className="card">
         <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow !mb-2">Question board</p><h2 className="text-3xl font-black">Choose a hidden card</h2></div><span className="rounded-full bg-[#f7f2e9] px-4 py-2 text-sm font-bold">{quiz.questions.length - game.completedQuestionIds.length} remaining</span></div>
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{quiz.questions.map((question, index) => { const used = game.completedQuestionIds.includes(question.id); return <motion.button layout key={question.id} whileHover={used ? undefined : { y: -5, rotate: -1 }} whileTap={used ? undefined : { scale: .96 }} disabled={used} onClick={() => chooseCard(question)} className={`question-card ${used ? 'used' : ''}`}><span className="card-shine" />{used ? <><Check size={30} /><span className="text-sm">Completed</span></> : <><CircleHelp size={30} /><span className="text-3xl">{index + 1}</span></>}</motion.button> })}</div>
       </section>
     </div>
-    <AnimatePresence>{activeQuestion && <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} role="dialog" aria-modal="true" aria-labelledby="question-title"><motion.section initial={{ opacity: 0, y: 30, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: .97 }} className="question-modal">
+    <AnimatePresence>{activeQuestion && <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} role="dialog" aria-modal="true" aria-labelledby="question-title"><motion.section initial={{ opacity: 0, y: 30, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: .97 }} className={`question-modal ${selectedAnswer !== null ? 'result-modal' : ''}`}>
       <AnimatePresence mode="wait" initial={false}>{selectedAnswer === null ? <motion.div key="question" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
         <div className="flex items-center justify-between"><span className="rounded-full bg-[#fff1ef] px-4 py-2 text-sm font-black text-coral">Student #{game.currentStudent ?? '—'}</span><button className="icon-btn" onClick={closeQuestion} aria-label="Close question"><X /></button></div>
         <h2 id="question-title" className="mt-7 text-2xl font-black leading-tight sm:text-4xl">{activeQuestion.question}</h2>
@@ -171,12 +168,12 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
         {(isCorrect || complete) && <Confetti />}
         {complete && <motion.div initial={{ y: -15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="completion-badge"><Trophy size={22} /> Quiz completed! 🎉</motion.div>}
         <motion.div initial={{ scale: .65, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', bounce: .5 }} className={`result-icon ${isCorrect ? 'correct' : 'wrong'}`}>{isCorrect ? <Check size={54} strokeWidth={4} /> : <X size={54} strokeWidth={4} />}</motion.div>
-        <div className="relative mt-3 text-4xl" aria-hidden="true">{isCorrect ? '✅ 🎉' : '❌ 🌱'}</div>
-        <p className="relative mt-4 text-sm font-extrabold uppercase tracking-[.18em] text-ink/45">{isCorrect ? 'Correct answer' : 'Incorrect answer'}</p>
-        <h2 id="question-title" className="relative mt-2 text-3xl font-black sm:text-5xl">{isCorrect ? 'Excellent! Great job!' : 'Good try! You’ve got this.'}</h2>
+        <div className="relative mt-2 text-2xl" aria-hidden="true">{isCorrect ? '✅ 🎉' : '❌ 🌱'}</div>
+        <p className="relative mt-3 text-xs font-extrabold uppercase tracking-[.18em] text-ink/45">{isCorrect ? 'Correct answer' : 'Incorrect answer'}</p>
+        <h2 id="question-title" className="relative mt-2 text-3xl font-black sm:text-4xl">{isCorrect ? 'Excellent! Great job!' : 'Good try! You’ve got this.'}</h2>
         {!isCorrect && <div className="result-answer"><span>{String.fromCharCode(65 + activeQuestion.correctAnswer)}</span><strong>{activeQuestion.options[activeQuestion.correctAnswer]}</strong></div>}
-        <p className="relative mx-auto mt-5 max-w-2xl text-lg leading-8 text-ink/70">{activeQuestion.explanation}</p>
-        {complete ? <div className="relative mt-8 border-t border-ink/10 pt-7"><p className="text-xl font-black">Great job, everyone! 👏</p><p className="mt-1 text-ink/55">You completed every question in this quiz.</p><div className="mt-5 flex flex-wrap justify-center gap-3"><button className="btn-primary" onClick={() => soundEnabled && playQuizCelebration()}><Volume2 size={18} /> Play applause</button><button className="btn-secondary" onClick={() => { closeQuestion(); restart() }}><RotateCcw size={18} /> Restart game</button><button className="btn-quiet" onClick={onEnd}>Dashboard</button></div></div> : <button className="btn-secondary relative mt-8" onClick={closeQuestion}>Back to cards <ArrowLeft className="rotate-180" size={18} /></button>}
+        <p className="relative mx-auto mt-4 max-w-2xl leading-7 text-ink/70">{activeQuestion.explanation}</p>
+        {complete ? <div className="relative mt-5 border-t border-ink/10 pt-5"><p className="font-black">Great job, everyone! 👏 You completed the quiz.</p><div className="mt-4 flex flex-wrap justify-center gap-3"><button className="btn-secondary" onClick={() => { closeQuestion(); restart() }}><RotateCcw size={18} /> Restart</button><button className="btn-quiet" onClick={onEnd}>Dashboard</button></div></div> : <button className="btn-secondary relative mt-6" onClick={closeQuestion}>Back to cards <ArrowLeft className="rotate-180" size={18} /></button>}
       </motion.div>}</AnimatePresence>
     </motion.section></motion.div>}</AnimatePresence>
   </>
