@@ -45,3 +45,20 @@ export const playQuizCelebration = () => {
   ;[0, .11, .23, .36, .48, .62, .75, .9, 1.05, 1.22].forEach(clap)
   tone(523.25, 0, .3, .1); tone(659.25, .18, .35, .1); tone(783.99, .38, .55, .13)
 }
+
+const speak = (message: string, kind: 'correct' | 'incorrect') => {
+  if (!('speechSynthesis' in window)) return
+  const voices = window.speechSynthesis.getVoices().filter(voice => voice.lang.toLowerCase().startsWith('en'))
+  const utterance = new SpeechSynthesisUtterance(message)
+  utterance.lang = 'en-US'
+  utterance.voice = kind === 'correct' ? (voices[0] ?? null) : (voices[1] ?? voices[0] ?? null)
+  utterance.pitch = kind === 'correct' ? 1.35 : .88
+  utterance.rate = kind === 'correct' ? 1.08 : .88
+  utterance.volume = .9
+  window.speechSynthesis.cancel()
+  window.speechSynthesis.speak(utterance)
+}
+
+export const playCorrectVoice = () => speak('Excellent! That is correct. Great job!', 'correct')
+
+export const playIncorrectVoice = () => speak('Good try. That is not quite right. Keep learning, you have got this!', 'incorrect')

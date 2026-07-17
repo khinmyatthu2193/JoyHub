@@ -38,10 +38,15 @@ body { margin: 0; min-width: 320px; min-height: 100vh; }
 .answer-option.correct > span { @apply bg-[#43a77d] text-white; }
 .answer-option.wrong { @apply border-[#e86a63] bg-[#fff0ef] text-[#a43e39]; }
 .answer-option.wrong > span { @apply bg-[#e86a63] text-white; }
-.feedback { @apply mt-6 rounded-3xl border p-6; }
-.feedback.correct { @apply border-[#9bd6bd] bg-[#e9f8f1]; }
-.feedback.wrong { @apply border-[#f2c0bc] bg-[#fff0ef]; }
-.celebration-panel { @apply relative overflow-hidden rounded-[2rem] bg-[#fff3c9] p-8 text-center sm:p-12; }
+.result-stage { @apply relative min-h-[28rem] overflow-hidden rounded-[1.5rem] p-8 text-center sm:p-12; }
+.result-stage.correct { @apply bg-[#e9f8f1]; }
+.result-stage.wrong { @apply bg-[#fff5e7]; }
+.result-icon { @apply relative mx-auto grid h-24 w-24 place-items-center rounded-full; }
+.result-icon.correct { @apply bg-[#43a77d] text-white shadow-xl shadow-[#43a77d]/20; }
+.result-icon.wrong { @apply bg-[#e86a63] text-white shadow-xl shadow-[#e86a63]/20; }
+.result-answer { @apply relative mx-auto mt-7 flex max-w-xl items-center justify-center gap-3 rounded-2xl border-2 border-[#f0c87a] bg-white/75 p-4 text-xl; }
+.result-answer span { @apply grid h-10 w-10 place-items-center rounded-xl bg-[#ffd86f] font-black; }
+.completion-badge { @apply relative mx-auto mb-6 flex w-fit items-center gap-2 rounded-full bg-[#ffd86f] px-5 py-3 font-black text-ink shadow-md; }
 .confetti { @apply pointer-events-none absolute inset-0 overflow-hidden; }
 .confetti i { @apply absolute -top-5 block h-4 w-2 rounded-sm; }
 .blob { position: fixed; border-radius: 999px; filter: blur(2px); opacity: .55; pointer-events: none; }

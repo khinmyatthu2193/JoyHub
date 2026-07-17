@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, CircleHelp, Pencil, Play, Plus, RotateCcw, RotateCw, Sparkles, Star, Trash2, Trophy, Users, Volume2, VolumeX, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, CircleHelp, Pencil, Play, Plus, RotateCcw, RotateCw, Trash2, Trophy, Users, Volume2, VolumeX, X } from 'lucide-react'
 import type { GameState, Question, Quiz } from './types/quiz'
 import { storage } from './utils/localStorage'
-import { playCorrectChime, playQuizCelebration } from './utils/sounds'
+import { playCorrectChime, playCorrectVoice, playIncorrectVoice, playQuizCelebration } from './utils/sounds'
+import joyHubLogo from './assets/joyhub-logo.png'
 
 type View = 'dashboard' | 'quizzes' | 'editor' | 'setup' | 'game'
 type QuizDraft = Pick<Quiz, 'id' | 'title' | 'description' | 'questions' | 'createdAt'>
@@ -16,7 +17,7 @@ function Shell({ children, onHome }: { children: React.ReactNode; onHome: () => 
   return <main className="min-h-screen overflow-hidden px-5 py-7 sm:px-10 lg:px-16">
     <div className="blob blob-one" /><div className="blob blob-two" />
     <button onClick={onHome} className="relative mx-auto flex max-w-6xl items-center gap-3 text-xl font-black text-ink">
-      <span className="grid h-11 w-11 place-items-center rounded-2xl bg-coral text-white shadow-soft"><Sparkles /></span>JoyHub
+      <img src={joyHubLogo} alt="" className="h-14 w-14 object-contain drop-shadow-md" />JoyHub
     </button>
     <AnimatePresence mode="wait"><motion.div key={(children as React.ReactElement).key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="relative mx-auto max-w-6xl">{children}</motion.div></AnimatePresence>
   </main>
@@ -126,8 +127,13 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   const answer = (option: number) => {
     if (!activeQuestion || selectedAnswer !== null) return
     setSelectedAnswer(option)
+    const correct = option === activeQuestion.correctAnswer
     const finishingQuiz = game.completedQuestionIds.length + 1 === quiz.questions.length
-    if (soundEnabled) finishingQuiz ? playQuizCelebration() : option === activeQuestion.correctAnswer && playCorrectChime()
+    if (soundEnabled) {
+      if (correct) { playCorrectChime(); playCorrectVoice() }
+      else playIncorrectVoice()
+      if (finishingQuiz) window.setTimeout(playQuizCelebration, 1200)
+    }
     onUpdate({ ...game, completedQuestionIds: [...game.completedQuestionIds, activeQuestion.id] })
   }
   const closeQuestion = () => { setActiveQuestion(null); setSelectedAnswer(null) }
@@ -153,14 +159,25 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
       </section>
       <section className="card">
         <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow !mb-2">Question board</p><h2 className="text-3xl font-black">Choose a hidden card</h2></div><span className="rounded-full bg-[#f7f2e9] px-4 py-2 text-sm font-bold">{quiz.questions.length - game.completedQuestionIds.length} remaining</span></div>
-        {complete ? <div className="celebration-panel mt-10"><Confetti /><motion.div initial={{ scale: .7, rotate: -8 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', bounce: .55 }} className="relative"><Trophy className="mx-auto fill-[#ffd86f] text-[#d79a12]" size={64} /><h3 className="mt-4 text-4xl font-black">Quiz completed! 🎉</h3><p className="mt-3 text-lg text-ink/60">Great job, everyone! Give yourselves a big round of applause.</p><div className="mt-7 flex flex-wrap justify-center gap-3"><button className="btn-primary" onClick={() => soundEnabled && playQuizCelebration()}><Volume2 size={18} /> Play applause</button><button className="btn-secondary" onClick={restart}><RotateCcw size={18} /> Restart game</button><button className="btn-quiet" onClick={onEnd}>Dashboard</button></div></motion.div></div> : <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{quiz.questions.map((question, index) => { const used = game.completedQuestionIds.includes(question.id); return <motion.button layout key={question.id} whileHover={used ? undefined : { y: -5, rotate: -1 }} whileTap={used ? undefined : { scale: .96 }} disabled={used} onClick={() => chooseCard(question)} className={`question-card ${used ? 'used' : ''}`}><span className="card-shine" />{used ? <><Check size={30} /><span className="text-sm">Completed</span></> : <><CircleHelp size={30} /><span className="text-3xl">{index + 1}</span></>}</motion.button> })}</div>}
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{quiz.questions.map((question, index) => { const used = game.completedQuestionIds.includes(question.id); return <motion.button layout key={question.id} whileHover={used ? undefined : { y: -5, rotate: -1 }} whileTap={used ? undefined : { scale: .96 }} disabled={used} onClick={() => chooseCard(question)} className={`question-card ${used ? 'used' : ''}`}><span className="card-shine" />{used ? <><Check size={30} /><span className="text-sm">Completed</span></> : <><CircleHelp size={30} /><span className="text-3xl">{index + 1}</span></>}</motion.button> })}</div>
       </section>
     </div>
     <AnimatePresence>{activeQuestion && <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} role="dialog" aria-modal="true" aria-labelledby="question-title"><motion.section initial={{ opacity: 0, y: 30, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: .97 }} className="question-modal">
-      <div className="flex items-center justify-between"><span className="rounded-full bg-[#fff1ef] px-4 py-2 text-sm font-black text-coral">Student #{game.currentStudent ?? '—'}</span>{selectedAnswer === null && <button className="icon-btn" onClick={closeQuestion} aria-label="Close question"><X /></button>}</div>
-      <h2 id="question-title" className="mt-7 text-2xl font-black leading-tight sm:text-4xl">{activeQuestion.question}</h2>
-      <div className="mt-7 grid gap-3 sm:grid-cols-2">{activeQuestion.options.map((option, index) => { const correctOption = selectedAnswer !== null && index === activeQuestion.correctAnswer; const wrongChoice = selectedAnswer === index && index !== activeQuestion.correctAnswer; return <button disabled={selectedAnswer !== null} onClick={() => answer(index)} key={index} className={`answer-option ${correctOption ? 'correct' : ''} ${wrongChoice ? 'wrong' : ''}`}><span>{String.fromCharCode(65 + index)}</span>{option}{correctOption && <Check className="ml-auto" />}{wrongChoice && <X className="ml-auto" />}</button> })}</div>
-      <AnimatePresence>{selectedAnswer !== null && <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className={`feedback ${isCorrect ? 'correct' : 'wrong'}`}><p className="text-2xl font-black">{isCorrect ? 'Excellent! Great job! 🌟' : 'Good try! Keep growing. 🌱'}</p>{!isCorrect && <p className="mt-2 font-bold">Correct answer: {String.fromCharCode(65 + activeQuestion.correctAnswer)}. {activeQuestion.options[activeQuestion.correctAnswer]}</p>}<p className="mt-3 text-ink/70">{activeQuestion.explanation}</p><button className="btn-secondary mt-6" onClick={closeQuestion}>Back to cards <ArrowLeft className="rotate-180" size={18} /></button></motion.div>}</AnimatePresence>
+      <AnimatePresence mode="wait" initial={false}>{selectedAnswer === null ? <motion.div key="question" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+        <div className="flex items-center justify-between"><span className="rounded-full bg-[#fff1ef] px-4 py-2 text-sm font-black text-coral">Student #{game.currentStudent ?? '—'}</span><button className="icon-btn" onClick={closeQuestion} aria-label="Close question"><X /></button></div>
+        <h2 id="question-title" className="mt-7 text-2xl font-black leading-tight sm:text-4xl">{activeQuestion.question}</h2>
+        <div className="mt-7 grid gap-3 sm:grid-cols-2">{activeQuestion.options.map((option, index) => <button onClick={() => answer(index)} key={index} className="answer-option"><span>{String.fromCharCode(65 + index)}</span>{option}</button>)}</div>
+      </motion.div> : <motion.div key="result" initial={{ opacity: 0, scale: .92 }} animate={{ opacity: 1, scale: 1 }} className={`result-stage ${isCorrect ? 'correct' : 'wrong'}`}>
+        {(isCorrect || complete) && <Confetti />}
+        {complete && <motion.div initial={{ y: -15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="completion-badge"><Trophy size={22} /> Quiz completed! 🎉</motion.div>}
+        <motion.div initial={{ scale: .65, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', bounce: .5 }} className={`result-icon ${isCorrect ? 'correct' : 'wrong'}`}>{isCorrect ? <Check size={54} strokeWidth={4} /> : <X size={54} strokeWidth={4} />}</motion.div>
+        <div className="relative mt-3 text-4xl" aria-hidden="true">{isCorrect ? '✅ 🎉' : '❌ 🌱'}</div>
+        <p className="relative mt-4 text-sm font-extrabold uppercase tracking-[.18em] text-ink/45">{isCorrect ? 'Correct answer' : 'Incorrect answer'}</p>
+        <h2 id="question-title" className="relative mt-2 text-3xl font-black sm:text-5xl">{isCorrect ? 'Excellent! Great job!' : 'Good try! You’ve got this.'}</h2>
+        {!isCorrect && <div className="result-answer"><span>{String.fromCharCode(65 + activeQuestion.correctAnswer)}</span><strong>{activeQuestion.options[activeQuestion.correctAnswer]}</strong></div>}
+        <p className="relative mx-auto mt-5 max-w-2xl text-lg leading-8 text-ink/70">{activeQuestion.explanation}</p>
+        {complete ? <div className="relative mt-8 border-t border-ink/10 pt-7"><p className="text-xl font-black">Great job, everyone! 👏</p><p className="mt-1 text-ink/55">You completed every question in this quiz.</p><div className="mt-5 flex flex-wrap justify-center gap-3"><button className="btn-primary" onClick={() => soundEnabled && playQuizCelebration()}><Volume2 size={18} /> Play applause</button><button className="btn-secondary" onClick={() => { closeQuestion(); restart() }}><RotateCcw size={18} /> Restart game</button><button className="btn-quiet" onClick={onEnd}>Dashboard</button></div></div> : <button className="btn-secondary relative mt-8" onClick={closeQuestion}>Back to cards <ArrowLeft className="rotate-180" size={18} /></button>}
+      </motion.div>}</AnimatePresence>
     </motion.section></motion.div>}</AnimatePresence>
   </>
 }
