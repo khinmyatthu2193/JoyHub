@@ -24,7 +24,9 @@ body { margin: 0; min-width: 320px; min-height: 100vh; }
 .selection { @apply flex w-full items-center justify-between rounded-2xl border-2 border-[#eee8dd] bg-white p-4 text-left transition hover:border-[#ffb0a9]; }
 .selection.selected { @apply border-[#ff8277] bg-[#fff7f5]; }
 .bg-cream { background: #fff8e9; }
-.wheel { @apply flex flex-col items-center justify-center gap-1 rounded-full border-[12px] border-white bg-[#ffd86f] text-ink shadow-xl; background-image: conic-gradient(#ffd86f 0 12.5%, #ff8277 12.5% 25%, #8ed9bd 25% 37.5%, #a9d6f5 37.5% 50%, #ffd86f 50% 62.5%, #ff8277 62.5% 75%, #8ed9bd 75% 87.5%, #a9d6f5 87.5%); }
+.brand { @apply w-full justify-start gap-2; }
+.brand-logo { @apply h-[4.5rem] w-[4.5rem] shrink-0 object-contain drop-shadow-md; }
+.number-wheel { @apply h-full w-full overflow-visible rounded-full; }
 .wheel-pointer { @apply absolute -top-3 left-1/2 h-0 w-0 -translate-x-1/2; border-left: 13px solid transparent; border-right: 13px solid transparent; border-top: 25px solid #263238; filter: drop-shadow(0 3px 2px rgb(0 0 0 / .15)); }
 .question-card { @apply relative flex aspect-[4/3] flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl bg-[#263238] font-black text-white shadow-lg transition disabled:cursor-default; }
 .question-card:not(.used) { background-image: linear-gradient(145deg, #384950, #202b30); }

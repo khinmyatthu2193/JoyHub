@@ -46,6 +46,24 @@ export const playQuizCelebration = () => {
   tone(523.25, 0, .3, .1); tone(659.25, .18, .35, .1); tone(783.99, .38, .55, .13)
 }
 
+export const playWheelSpin = (duration = 1.7) => {
+  const ctx = context()
+  const ticks = 24
+  for (let index = 0; index < ticks; index += 1) {
+    const progress = index / ticks
+    const start = duration * Math.pow(progress, 1.65)
+    const oscillator = ctx.createOscillator()
+    const gain = ctx.createGain()
+    oscillator.type = 'triangle'
+    oscillator.frequency.value = 680 - progress * 260
+    gain.gain.setValueAtTime(.055, ctx.currentTime + start)
+    gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + start + .035)
+    oscillator.connect(gain).connect(ctx.destination)
+    oscillator.start(ctx.currentTime + start)
+    oscillator.stop(ctx.currentTime + start + .04)
+  }
+}
+
 const speak = (message: string, kind: 'correct' | 'incorrect') => {
   if (!('speechSynthesis' in window)) return
   const voices = window.speechSynthesis.getVoices().filter(voice => voice.lang.toLowerCase().startsWith('en'))

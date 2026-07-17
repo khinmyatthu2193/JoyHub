@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, CircleHelp, Pencil, Play, Plus, RotateCcw, RotateCw, Trash2, Trophy, Users, X } from 'lucide-react'
 import type { GameState, Question, Quiz } from './types/quiz'
 import { storage } from './utils/localStorage'
-import { playCorrectChime, playCorrectVoice, playIncorrectVoice, playQuizCelebration } from './utils/sounds'
+import { playCorrectChime, playCorrectVoice, playIncorrectVoice, playQuizCelebration, playWheelSpin } from './utils/sounds'
 import joyHubLogo from './assets/joyhub-logo.png'
 
 type View = 'dashboard' | 'quizzes' | 'editor' | 'setup' | 'game'
@@ -16,8 +16,8 @@ const emptyQuiz = (): QuizDraft => ({ id: id(), title: '', description: '', ques
 function Shell({ children, onHome }: { children: React.ReactNode; onHome: () => void }) {
   return <main className="min-h-screen overflow-hidden px-5 py-7 sm:px-10 lg:px-16">
     <div className="blob blob-one" /><div className="blob blob-two" />
-    <button onClick={onHome} className="relative mx-auto flex max-w-6xl items-center gap-3 text-xl font-black text-ink">
-      <img src={joyHubLogo} alt="" className="h-14 w-14 object-contain drop-shadow-md" />JoyHub
+    <button onClick={onHome} className="brand relative mx-auto flex max-w-6xl items-center text-2xl font-black text-ink" aria-label="JoyHub home">
+      <img src={joyHubLogo} alt="" className="brand-logo" /><span>Joy<span className="text-coral">Hub</span></span>
     </button>
     <AnimatePresence mode="wait"><motion.div key={(children as React.ReactElement).key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="relative mx-auto max-w-6xl">{children}</motion.div></AnimatePresence>
   </main>
@@ -110,10 +110,14 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   if (!game || !quiz) return <section className="py-24 text-center"><h1 className="page-title">No active game</h1><button className="btn-primary mt-8" onClick={onSetup}>Set up a game</button></section>
   const spin = () => {
     if (isSpinning) return
+    const student = Math.floor(Math.random() * game.studentCount) + 1
+    const slice = 360 / game.studentCount
+    const target = -(student - .5) * slice
+    const delta = 1440 + ((target - (rotation % 360) + 360) % 360)
     setIsSpinning(true)
-    setRotation(value => value + 1440 + Math.floor(Math.random() * 720))
+    setRotation(value => value + delta)
+    playWheelSpin()
     window.setTimeout(() => {
-      const student = Math.floor(Math.random() * game.studentCount) + 1
       onUpdate({ ...game, currentStudent: student })
       setIsSpinning(false)
     }, 1700)
@@ -142,9 +146,9 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
     <div className="grid gap-6 pb-16 lg:grid-cols-[.72fr_1.28fr]">
       <section className="card text-center lg:sticky lg:top-6 lg:self-start">
         <p className="text-sm font-extrabold uppercase tracking-[.18em] text-ink/45">Current student</p>
-        <div className="relative mx-auto mt-7 h-48 w-48">
-          <motion.div animate={{ rotate: rotation }} transition={{ duration: 1.7, ease: [0.12, 0.72, 0.18, 1] }} className="wheel h-full w-full">
-            <Users size={45} /><span className="text-sm font-black">JOY</span>
+        <div className="relative mx-auto mt-7 h-64 w-64 max-w-full">
+          <motion.div animate={{ rotate: rotation }} transition={{ duration: 1.7, ease: [0.12, 0.72, 0.18, 1] }} className="h-full w-full drop-shadow-xl">
+            <NumberWheel count={game.studentCount} />
           </motion.div>
           <span className="wheel-pointer" />
         </div>
@@ -177,6 +181,34 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
       </motion.div>}</AnimatePresence>
     </motion.section></motion.div>}</AnimatePresence>
   </>
+}
+
+const wheelColors = ['#ff8277', '#ffd86f', '#65c6a3', '#75b9e6', '#a98bdd', '#ffad68']
+const point = (angle: number, radius: number) => {
+  const radians = angle * Math.PI / 180
+  return { x: 120 + radius * Math.cos(radians), y: 120 + radius * Math.sin(radians) }
+}
+function NumberWheel({ count }: { count: number }) {
+  const slice = 360 / count
+  const fontSize = Math.max(5, Math.min(15, 170 / count))
+  return <svg viewBox="0 0 240 240" className="number-wheel" role="img" aria-label={`Wheel numbered 1 to ${count}`}>
+    <circle cx="120" cy="120" r="116" fill="#fff" />
+    {count === 1 && <><circle cx="120" cy="120" r="108" fill={wheelColors[0]} /><text x="120" y="43" textAnchor="middle" fontSize="18" fontWeight="900" fill="#263238">1</text></>}
+    {count > 1 && Array.from({ length: count }, (_, index) => {
+      const startAngle = -90 + index * slice
+      const endAngle = startAngle + slice
+      const start = point(startAngle, 108)
+      const end = point(endAngle, 108)
+      const label = point(startAngle + slice / 2, count > 36 ? 91 : 82)
+      const largeArc = slice > 180 ? 1 : 0
+      return <g key={index}>
+        <path d={`M 120 120 L ${start.x} ${start.y} A 108 108 0 ${largeArc} 1 ${end.x} ${end.y} Z`} fill={wheelColors[index % wheelColors.length]} stroke="rgba(255,255,255,.7)" strokeWidth={count > 40 ? .35 : 1} />
+        <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" fontSize={fontSize} fontWeight="900" fill="#263238" transform={`rotate(${startAngle + slice / 2 + 90} ${label.x} ${label.y})`}>{index + 1}</text>
+      </g>
+    })}
+    <circle cx="120" cy="120" r="31" fill="#fffaf2" stroke="#fff" strokeWidth="5" />
+    <image href={joyHubLogo} x="94" y="94" width="52" height="52" />
+  </svg>
 }
 
 const confettiColors = ['#ff8277', '#ffd86f', '#8ed9bd', '#75b9e6', '#a98bdd']
