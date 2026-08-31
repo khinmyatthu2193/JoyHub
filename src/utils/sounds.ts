@@ -1,5 +1,9 @@
 let audioContext: AudioContext | null = null
 
+const safely = (play: () => void) => {
+  try { play() } catch { /* Optional audio feedback must never block gameplay. */ }
+}
+
 const context = () => {
   audioContext ??= new AudioContext()
   return audioContext
@@ -36,32 +40,38 @@ const clap = (start: number) => {
 }
 
 export const playCorrectChime = () => {
-  tone(523.25, 0, .24)
-  tone(659.25, .12, .26)
-  tone(783.99, .24, .38, .15)
+  safely(() => {
+    tone(523.25, 0, .24)
+    tone(659.25, .12, .26)
+    tone(783.99, .24, .38, .15)
+  })
 }
 
 export const playQuizCelebration = () => {
-  ;[0, .11, .23, .36, .48, .62, .75, .9, 1.05, 1.22].forEach(clap)
-  tone(523.25, 0, .3, .1); tone(659.25, .18, .35, .1); tone(783.99, .38, .55, .13)
+  safely(() => {
+    ;[0, .11, .23, .36, .48, .62, .75, .9, 1.05, 1.22].forEach(clap)
+    tone(523.25, 0, .3, .1); tone(659.25, .18, .35, .1); tone(783.99, .38, .55, .13)
+  })
 }
 
 export const playWheelSpin = (duration = 1.7) => {
-  const ctx = context()
-  const ticks = 24
-  for (let index = 0; index < ticks; index += 1) {
-    const progress = index / ticks
-    const start = duration * Math.pow(progress, 1.65)
-    const oscillator = ctx.createOscillator()
-    const gain = ctx.createGain()
-    oscillator.type = 'triangle'
-    oscillator.frequency.value = 680 - progress * 260
-    gain.gain.setValueAtTime(.055, ctx.currentTime + start)
-    gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + start + .035)
-    oscillator.connect(gain).connect(ctx.destination)
-    oscillator.start(ctx.currentTime + start)
-    oscillator.stop(ctx.currentTime + start + .04)
-  }
+  safely(() => {
+    const ctx = context()
+    const ticks = 24
+    for (let index = 0; index < ticks; index += 1) {
+      const progress = index / ticks
+      const start = duration * Math.pow(progress, 1.65)
+      const oscillator = ctx.createOscillator()
+      const gain = ctx.createGain()
+      oscillator.type = 'triangle'
+      oscillator.frequency.value = 680 - progress * 260
+      gain.gain.setValueAtTime(.055, ctx.currentTime + start)
+      gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + start + .035)
+      oscillator.connect(gain).connect(ctx.destination)
+      oscillator.start(ctx.currentTime + start)
+      oscillator.stop(ctx.currentTime + start + .04)
+    }
+  })
 }
 
 const speak = (message: string, kind: 'correct' | 'incorrect') => {
@@ -77,6 +87,6 @@ const speak = (message: string, kind: 'correct' | 'incorrect') => {
   window.speechSynthesis.speak(utterance)
 }
 
-export const playCorrectVoice = () => speak('Excellent! That is correct. Great job!', 'correct')
+export const playCorrectVoice = () => safely(() => speak('Excellent! That is correct. Great job!', 'correct'))
 
-export const playIncorrectVoice = () => speak('Good try. That is not quite right. Keep learning, you have got this!', 'incorrect')
+export const playIncorrectVoice = () => safely(() => speak('Good try. That is not quite right. Keep learning, you have got this!', 'incorrect'))

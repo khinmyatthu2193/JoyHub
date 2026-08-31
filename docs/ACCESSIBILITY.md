@@ -4,24 +4,25 @@ This is an audit of the current implementation plus the target for future change
 
 ## Present today
 
-- Interactive actions use native `button`, `input`, `textarea`, and radio controls; form controls are nested in visible labels.
+- Interactive actions use native `button`, `input`, `textarea`, and radio controls; form controls are programmatically associated with visible labels.
 - Icon-only home, edit, delete, reorder, and close buttons have accessible names.
 - The question overlay uses `role="dialog"`, `aria-modal="true"`, and `aria-labelledby` connected to its heading.
+- Opening the question dialog focuses its close control, traps Tab/Shift+Tab, and supports Escape. Closing returns to the originating card when it remains available, or to Spin after that card becomes completed; feedback moves focus to the next available action.
 - The number wheel is an SVG image with an accessible label. Decorative logo/confetti/emoji treatment is hidden where marked.
 - Completed cards and unavailable actions are natively disabled. Correct/incorrect feedback uses words and icons as well as color and sound.
-- Inputs have a visible custom focus ring. CSS reduces animation and transition durations for `prefers-reduced-motion: reduce`.
+- Shared controls have a consistent high-contrast `focus-visible` outline, and inputs retain their existing focus treatment. New views focus their primary heading.
+- Quiz fields use explicit labels, required/invalid state, and error-summary relationships. Quiz choices expose their pressed state, and setup/validation errors use alert semantics.
+- Final student selection and answer feedback use restrained live announcements rather than announcing animation frames.
+- Framer Motion honors the user’s reduced-motion preference and confetti is omitted; CSS also shortens animation and transition durations.
+- Web Audio and Speech Synthesis failures are contained so optional feedback cannot prevent spin or answer state updates.
 - Responsive layouts are mobile-first and retain large classroom-facing type and controls.
 
 ## Gaps confirmed in source
 
-- Opening the question dialog does not move focus into it, trap focus, close on Escape, or restore focus to the triggering card.
-- Page/view transitions do not deliberately place focus on the new heading.
-- Most buttons rely on browser focus styling; shared button classes do not define a consistent `focus-visible` treatment.
-- Validation messages are not associated with fields through `aria-describedby`/`aria-invalid` and are not announced as live status.
-- Spin result, answer feedback, and completion changes are not exposed through live regions.
-- The global reduced-motion CSS shortens CSS durations, but Framer Motion still supplies transforms/timers and the wheel still waits 1.7 seconds before selection is committed.
 - No application keyboard shortcuts exist. Native Tab, Enter, and Space behavior is available through semantic controls.
 - The End game action has no confirmation, while quiz deletion uses the browser’s `confirm()` dialog.
+- There is no user-facing sound/speech preference. Browser API failures are safe, but teachers cannot mute feedback within JoyHub.
+- The wheel still waits 1.7 seconds before committing the result in reduced-motion mode, although its large rotation is removed.
 
 ## Standard for future work
 

@@ -74,7 +74,7 @@ Acceptance checks:
 - [x] Restart and return-to-dashboard actions
 - [x] Page transitions and reduced-motion support
 - [ ] Empty, error, and confirmation states
-- [ ] Accessibility and keyboard pass
+- [~] Accessibility and keyboard pass
 - [ ] Final responsive QA
 
 Acceptance checks:
@@ -98,6 +98,7 @@ Acceptance checks:
 | 2026-08-31 | Remove the redundant project overview from Codex context | `PRODUCT_SPEC.md` and `README.md` already cover product purpose; keeping facts in their existing source reduces drift. |
 | 2026-08-31 | Add focused game, storage, and accessibility context | These high-risk final-polish areas need deeper factual guidance without forcing unrelated tasks to load it. |
 | 2026-08-31 | Use ESLint flat configuration with existing correctness plugins | Matches ESLint 10 and protects JavaScript, TypeScript, React Hooks, and React Refresh without adding style-only dependencies. |
+| 2026-08-31 | Use native controls plus focused accessibility helpers | Adds visible focus, dialog focus management, form relationships, announcements, and reduced-motion support without changing game rules or storage. |
 
 ## Update template
 

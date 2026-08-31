@@ -6,6 +6,7 @@
 :root { font-family: Nunito, ui-rounded, sans-serif; color: #263238; background: #fffaf2; font-synthesis: none; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
+:where(button, a, input, textarea, select, [tabindex]):focus-visible { outline: 3px solid #263238; outline-offset: 3px; }
 .bg-coral { background: #ff8277; }.bg-sun { background: #ffd86f; }.bg-mint { background: #8ed9bd; }
 .text-coral { color: #ed675c; }.text-ink { color: #263238; }
 .shadow-soft { box-shadow: 0 18px 50px rgba(85, 68, 46, .10); }

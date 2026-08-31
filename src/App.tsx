@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'framer-motion'
 import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, CircleHelp, Pencil, Play, Plus, RotateCcw, RotateCw, Trash2, Trophy, Users, X } from 'lucide-react'
 import type { GameState, Question, Quiz } from './types/quiz'
 import { storage } from './utils/localStorage'
@@ -21,20 +21,68 @@ const shuffledOptionIndexes = (length: number) => {
   return indexes
 }
 
+const focusableSelector = 'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+
+function useHeadingFocus() {
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => { headingRef.current?.focus() }, [])
+  return headingRef
+}
+
+function useDialogFocus(open: boolean, onClose: () => void, fallbackFocusRef: React.RefObject<HTMLElement | null>) {
+  const dialogRef = useRef<HTMLElement>(null)
+  const initialFocusRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const dialog = dialogRef.current
+    const fallbackFocus = fallbackFocusRef.current
+    initialFocusRef.current?.focus()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab' || !dialog) return
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector))
+      if (!focusable.length) { event.preventDefault(); dialog.focus(); return }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const currentIndex = focusable.indexOf(document.activeElement as HTMLElement)
+      if (event.shiftKey && currentIndex <= 0) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && (currentIndex === -1 || currentIndex === focusable.length - 1)) { event.preventDefault(); first.focus() }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      const triggerIsDisabled = trigger instanceof HTMLButtonElement && trigger.disabled
+      if (trigger?.isConnected && !triggerIsDisabled) trigger.focus()
+      else fallbackFocus?.focus()
+    }
+  }, [fallbackFocusRef, open, onClose])
+
+  return { dialogRef, initialFocusRef }
+}
+
 function Shell({ children, onHome }: { children: React.ReactNode; onHome: () => void }) {
-  return <main className="min-h-screen overflow-hidden px-5 py-7 sm:px-10 lg:px-16">
+  return <MotionConfig reducedMotion="user"><main className="min-h-screen overflow-hidden px-5 py-7 sm:px-10 lg:px-16">
     <div className="blob blob-one" /><div className="blob blob-two" />
     <button onClick={onHome} className="brand relative mx-auto flex max-w-6xl items-center text-2xl font-black text-ink" aria-label="JoyHub home">
       <img src={joyHubLogo} alt="" className="brand-logo" /><span>Joy<span className="text-coral">Hub</span></span>
     </button>
     <AnimatePresence mode="wait"><motion.div key={(children as React.ReactElement).key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="relative mx-auto max-w-6xl">{children}</motion.div></AnimatePresence>
-  </main>
+  </main></MotionConfig>
 }
 
 function PageHeader({ eyebrow, title, text, back }: { eyebrow: string; title: string; text: string; back?: () => void }) {
+  const headingRef = useHeadingFocus()
   return <header className="pb-10 pt-12 sm:pt-16">
     {back && <button className="btn-quiet mb-7" onClick={back}><ArrowLeft size={18} /> Back</button>}
-    <p className="eyebrow">{eyebrow}</p><h1 className="page-title">{title}</h1><p className="mt-4 max-w-2xl text-lg text-ink/60">{text}</p>
+    <p className="eyebrow">{eyebrow}</p><h1 ref={headingRef} tabIndex={-1} className="page-title outline-none">{title}</h1><p className="mt-4 max-w-2xl text-lg text-ink/60">{text}</p>
   </header>
 }
 
@@ -87,12 +135,13 @@ export function App() {
 }
 
 function Dashboard({ quizCount, onCreate, onManage, onStart, hasGame, onResume }: { quizCount: number; onCreate: () => void; onManage: () => void; onStart: () => void; hasGame: boolean; onResume: () => void }) {
+  const headingRef = useHeadingFocus()
   const actions = [
     { title: 'Create a quiz', text: 'Build questions for your next lesson.', icon: Plus, color: 'bg-coral', action: onCreate },
     { title: 'Manage quizzes', text: `${quizCount} ${quizCount === 1 ? 'quiz' : 'quizzes'} ready to use.`, icon: BookOpen, color: 'bg-sun', action: onManage },
     { title: hasGame ? 'Resume classroom game' : 'Start classroom game', text: hasGame ? 'Your classroom progress is safely stored.' : 'Pick a quiz and bring the room to life.', icon: Play, color: 'bg-mint', action: hasGame ? onResume : onStart },
   ]
-  return <section className="py-16 sm:py-24"><p className="eyebrow">Interactive classroom joy</p><h1 className="max-w-4xl text-5xl font-black leading-[.98] tracking-tight text-ink sm:text-7xl">Teach with joy.<br /><span className="text-coral">Learn with confidence.</span> 🌱</h1><p className="mt-7 max-w-2xl text-lg leading-8 text-ink/65">Turn everyday lessons into lively classroom moments with quizzes, surprise questions, and plenty of encouragement.</p><div className="mt-14 grid gap-5 md:grid-cols-3">{actions.map((a, i) => <motion.button key={a.title} initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * .07 }} whileHover={{ y: -6 }} onClick={a.action} className="card text-left"><span className={`grid h-14 w-14 place-items-center rounded-2xl ${a.color}`}><a.icon /></span><h2 className="mt-8 text-2xl font-black">{a.title}</h2><p className="mt-2 leading-7 text-ink/60">{a.text}</p><span className="mt-7 inline-block font-bold text-coral">Let’s go →</span></motion.button>)}</div></section>
+  return <section className="py-16 sm:py-24"><p className="eyebrow">Interactive classroom joy</p><h1 ref={headingRef} tabIndex={-1} className="max-w-4xl text-5xl font-black leading-[.98] tracking-tight text-ink outline-none sm:text-7xl">Teach with joy.<br /><span className="text-coral">Learn with confidence.</span> 🌱</h1><p className="mt-7 max-w-2xl text-lg leading-8 text-ink/65">Turn everyday lessons into lively classroom moments with quizzes, surprise questions, and plenty of encouragement.</p><div className="mt-14 grid gap-5 md:grid-cols-3">{actions.map((a, i) => <motion.button key={a.title} initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * .07 }} whileHover={{ y: -6 }} onClick={a.action} className="card text-left"><span className={`grid h-14 w-14 place-items-center rounded-2xl ${a.color}`}><a.icon /></span><h2 className="mt-8 text-2xl font-black">{a.title}</h2><p className="mt-2 leading-7 text-ink/60">{a.text}</p><span className="mt-7 inline-block font-bold text-coral">Let’s go →</span></motion.button>)}</div></section>
 }
 
 function QuizList({ quizzes, onBack, onCreate, onEdit, onDelete }: { quizzes: Quiz[]; onBack: () => void; onCreate: () => void; onEdit: (q: Quiz) => void; onDelete: (id: string) => void }) {
@@ -102,12 +151,34 @@ function QuizList({ quizzes, onBack, onCreate, onEdit, onDelete }: { quizzes: Qu
 function QuizEditor({ draft, setDraft, errors, onBack, onSave }: { draft: QuizDraft; setDraft: (q: QuizDraft) => void; errors: string[]; onBack: () => void; onSave: () => void }) {
   const updateQuestion = (index: number, next: Question) => setDraft({ ...draft, questions: draft.questions.map((q, i) => i === index ? next : q) })
   const move = (index: number, direction: -1 | 1) => { const questions = [...draft.questions]; const target = index + direction; if (target < 0 || target >= questions.length) return; [questions[index], questions[target]] = [questions[target], questions[index]]; setDraft({ ...draft, questions }) }
-  return <><PageHeader eyebrow="Quiz builder" title={draft.title || 'Create a quiz'} text="Add four choices, select the right answer, and give students a helpful explanation." back={onBack} /><div className="space-y-6 pb-20"><section className="card"><label className="label">Quiz title<input className="input" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} placeholder="e.g. Space Explorers" /></label><label className="label mt-5">Description <span className="font-normal text-ink/40">(optional)</span><textarea className="input min-h-24" value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })} placeholder="What will your class practice?" /></label></section>{draft.questions.map((q, index) => <section className="card" key={q.id}><div className="flex items-center justify-between"><h2 className="text-xl font-black">Question {index + 1}</h2><div className="flex gap-2"><button className="icon-btn" disabled={index === 0} onClick={() => move(index, -1)} aria-label="Move question up"><ArrowUp size={18} /></button><button className="icon-btn" disabled={index === draft.questions.length - 1} onClick={() => move(index, 1)} aria-label="Move question down"><ArrowDown size={18} /></button><button className="icon-btn danger" disabled={draft.questions.length === 1} onClick={() => setDraft({ ...draft, questions: draft.questions.filter(item => item.id !== q.id) })} aria-label="Delete question"><Trash2 size={18} /></button></div></div><label className="label mt-5">Question<input className="input" value={q.question} onChange={e => updateQuestion(index, { ...q, question: e.target.value })} /></label><div className="mt-5 grid gap-4 sm:grid-cols-2">{q.options.map((option, optionIndex) => <label className="label" key={optionIndex}><span className="flex items-center gap-2"><input type="radio" name={`correct-${q.id}`} checked={q.correctAnswer === optionIndex} onChange={() => updateQuestion(index, { ...q, correctAnswer: optionIndex })} /> Option {String.fromCharCode(65 + optionIndex)} {q.correctAnswer === optionIndex && <span className="text-xs text-coral">Correct</span>}</span><input className="input" value={option} onChange={e => { const options = [...q.options] as Question['options']; options[optionIndex] = e.target.value; updateQuestion(index, { ...q, options }) }} /></label>)}</div><label className="label mt-5">Explanation<textarea className="input min-h-20" value={q.explanation} onChange={e => updateQuestion(index, { ...q, explanation: e.target.value })} /></label></section>)}<button className="btn-secondary w-full justify-center" onClick={() => setDraft({ ...draft, questions: [...draft.questions, emptyQuestion()] })}><Plus size={19} /> Add question</button>{errors.length > 0 && <div className="error-box"><strong>Please check your quiz:</strong><ul className="mt-2 list-disc pl-5">{errors.map(error => <li key={error}>{error}</li>)}</ul></div>}<div className="flex justify-end"><button className="btn-primary" onClick={onSave}><Check size={19} /> Save quiz</button></div></div></>
+  const errorId = errors.length ? 'quiz-errors' : undefined
+  const required = <><span aria-hidden="true" className="text-coral"> *</span><span className="sr-only"> required</span></>
+
+  return <><PageHeader eyebrow="Quiz builder" title={draft.title || 'Create a quiz'} text="Add four choices, select the right answer, and give students a helpful explanation." back={onBack} /><div className="space-y-6 pb-20">
+    <section className="card">
+      <label className="label" htmlFor="quiz-title">Quiz title{required}</label><input id="quiz-title" className="input" required aria-invalid={errors.includes('Add a quiz title.')} aria-describedby={errors.includes('Add a quiz title.') ? errorId : undefined} value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} placeholder="e.g. Space Explorers" />
+      <label className="label mt-5" htmlFor="quiz-description">Description <span className="font-normal text-ink/40">(optional)</span></label><textarea id="quiz-description" className="input min-h-24" value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })} placeholder="What will your class practice?" />
+    </section>
+    {draft.questions.map((q, index) => {
+      const questionInvalid = errors.includes(`Question ${index + 1} needs question text.`)
+      const optionsInvalid = errors.includes(`Question ${index + 1} needs all four options.`)
+      const explanationInvalid = errors.includes(`Question ${index + 1} needs an explanation.`)
+      return <section className="card" key={q.id}><div className="flex items-center justify-between"><h2 className="text-xl font-black">Question {index + 1}</h2><div className="flex gap-2"><button className="icon-btn" disabled={index === 0} onClick={() => move(index, -1)} aria-label={`Move question ${index + 1} up`}><ArrowUp size={18} /></button><button className="icon-btn" disabled={index === draft.questions.length - 1} onClick={() => move(index, 1)} aria-label={`Move question ${index + 1} down`}><ArrowDown size={18} /></button><button className="icon-btn danger" disabled={draft.questions.length === 1} onClick={() => setDraft({ ...draft, questions: draft.questions.filter(item => item.id !== q.id) })} aria-label={`Delete question ${index + 1}`}><Trash2 size={18} /></button></div></div>
+        <label className="label mt-5" htmlFor={`question-${q.id}`}>Question text{required}</label><input id={`question-${q.id}`} className="input" required aria-invalid={questionInvalid} aria-describedby={questionInvalid ? errorId : undefined} value={q.question} onChange={e => updateQuestion(index, { ...q, question: e.target.value })} />
+        <fieldset className="mt-5"><legend className="label">Answer options{required}</legend><div className="mt-2 grid gap-4 sm:grid-cols-2">{q.options.map((option, optionIndex) => { const letter = String.fromCharCode(65 + optionIndex); return <div key={optionIndex}><span className="flex items-center gap-2 font-extrabold"><input id={`correct-${q.id}-${optionIndex}`} type="radio" name={`correct-${q.id}`} checked={q.correctAnswer === optionIndex} onChange={() => updateQuestion(index, { ...q, correctAnswer: optionIndex })} /><label htmlFor={`correct-${q.id}-${optionIndex}`}>Option {letter} is correct {q.correctAnswer === optionIndex && <span className="text-xs text-coral">Selected</span>}</label></span><label className="sr-only" htmlFor={`option-${q.id}-${optionIndex}`}>Option {letter} text</label><input id={`option-${q.id}-${optionIndex}`} className="input" required aria-invalid={optionsInvalid && !option.trim()} aria-describedby={optionsInvalid && !option.trim() ? errorId : undefined} value={option} onChange={e => { const options = [...q.options] as Question['options']; options[optionIndex] = e.target.value; updateQuestion(index, { ...q, options }) }} /></div> })}</div></fieldset>
+        <label className="label mt-5" htmlFor={`explanation-${q.id}`}>Explanation{required}</label><textarea id={`explanation-${q.id}`} className="input min-h-20" required aria-invalid={explanationInvalid} aria-describedby={explanationInvalid ? errorId : undefined} value={q.explanation} onChange={e => updateQuestion(index, { ...q, explanation: e.target.value })} />
+      </section>
+    })}
+    <button className="btn-secondary w-full justify-center" onClick={() => setDraft({ ...draft, questions: [...draft.questions, emptyQuestion()] })}><Plus size={19} /> Add question</button>
+    {errors.length > 0 && <div id="quiz-errors" className="error-box" role="alert"><strong>Please check your quiz:</strong><ul className="mt-2 list-disc pl-5">{errors.map(error => <li key={error}>{error}</li>)}</ul></div>}
+    <div className="flex justify-end"><button className="btn-primary" onClick={onSave}><Check size={19} /> Save quiz</button></div>
+  </div></>
 }
 
 function ClassSetup({ quizzes, selected, setSelected, count, setCount, errors, onBack, onStart }: { quizzes: Quiz[]; selected: string; setSelected: (id: string) => void; count: number; setCount: (n: number) => void; errors: string[]; onBack: () => void; onStart: () => void }) {
   const safeCount = Math.max(1, Math.min(100, Number(count) || 1)); const students = useMemo(() => Array.from({ length: safeCount }, (_, i) => i + 1), [safeCount])
-  return <><PageHeader eyebrow="Classroom setup" title="Ready the room" text="Choose an activity and set how many students are joining today." back={onBack} /><div className="grid gap-6 pb-16 lg:grid-cols-[1.1fr_.9fr]"><section className="card"><h2 className="text-xl font-black">1. Choose a quiz</h2><div className="mt-5 space-y-3">{quizzes.map(q => <button key={q.id} onClick={() => setSelected(q.id)} className={`selection ${selected === q.id ? 'selected' : ''}`}><span><strong className="block text-lg">{q.title}</strong><span className="text-sm text-ink/55">{q.questions.length} questions</span></span>{selected === q.id && <Check className="text-coral" />}</button>)}</div>{quizzes.length === 0 && <p className="mt-5 text-ink/60">Create a quiz before starting a game.</p>}<label className="label mt-8">2. Number of students<input className="input max-w-40 text-2xl font-black" type="number" min="1" max="100" value={count} onChange={e => setCount(Number(e.target.value))} /></label><p className="mt-2 text-sm text-ink/50">Choose between 1 and 100 students.</p>{errors.length > 0 && <div className="error-box mt-6">{errors[0]}</div>}<button className="btn-primary mt-8" disabled={!quizzes.length} onClick={onStart}><Play size={19} /> Start game</button></section><section className="card"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-mint"><Users /></span><div><h2 className="font-black">Class preview</h2><p className="text-sm text-ink/55">{safeCount} numbered students</p></div></div><div className="mt-6 grid max-h-[30rem] grid-cols-3 gap-2 overflow-auto pr-2 sm:grid-cols-4 lg:grid-cols-3">{students.map(n => <span key={n} className="rounded-xl bg-cream p-3 text-center text-sm font-bold">Student #{n}</span>)}</div></section></div></>
+  const errorId = errors.length ? 'setup-error' : undefined
+  return <><PageHeader eyebrow="Classroom setup" title="Ready the room" text="Choose an activity and set how many students are joining today." back={onBack} /><div className="grid gap-6 pb-16 lg:grid-cols-[1.1fr_.9fr]"><section className="card"><h2 id="quiz-selection-label" className="text-xl font-black">1. Choose a quiz</h2><div className="mt-5 space-y-3" role="group" aria-labelledby="quiz-selection-label" aria-describedby={errorId}>{quizzes.map(q => <button key={q.id} type="button" aria-pressed={selected === q.id} onClick={() => setSelected(q.id)} className={`selection ${selected === q.id ? 'selected' : ''}`}><span><strong className="block text-lg">{q.title}</strong><span className="text-sm text-ink/55">{q.questions.length} questions</span></span>{selected === q.id && <Check className="text-coral" aria-hidden="true" />}</button>)}</div>{quizzes.length === 0 && <p className="mt-5 text-ink/60">Create a quiz before starting a game.</p>}<label className="label mt-8" htmlFor="student-count">2. Number of students</label><input id="student-count" className="input max-w-40 text-2xl font-black" type="number" min="1" max="100" aria-describedby="student-count-help" value={count} onChange={e => setCount(Number(e.target.value))} /><p id="student-count-help" className="mt-2 text-sm text-ink/50">Choose between 1 and 100 students.</p>{errors.length > 0 && <div id="setup-error" className="error-box mt-6" role="alert">{errors[0]}</div>}<button className="btn-primary mt-8" disabled={!quizzes.length} onClick={onStart}><Play size={19} /> Start game</button></section><section className="card"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-mint"><Users aria-hidden="true" /></span><div><h2 className="font-black">Class preview</h2><p className="text-sm text-ink/55">{safeCount} numbered students</p></div></div><div className="mt-6 grid max-h-[30rem] grid-cols-3 gap-2 overflow-auto pr-2 sm:grid-cols-4 lg:grid-cols-3">{students.map(n => <span key={n} className="rounded-xl bg-cream p-3 text-center text-sm font-bold">Student #{n}</span>)}</div></section></div></>
 }
 
 function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState | null; quiz?: Quiz; onUpdate: (game: GameState) => void; onEnd: () => void; onSetup: () => void }) {
@@ -116,6 +187,16 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null)
   const [optionOrder, setOptionOrder] = useState<number[]>([])
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+  const shouldReduceMotion = useReducedMotion()
+  const closeQuestion = useCallback(() => { setActiveQuestion(null); setSelectedAnswer(null) }, [])
+  const spinButtonRef = useRef<HTMLButtonElement>(null)
+  const { dialogRef, initialFocusRef } = useDialogFocus(Boolean(activeQuestion), closeQuestion, spinButtonRef)
+  const resultActionRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (selectedAnswer !== null) resultActionRef.current?.focus()
+  }, [selectedAnswer])
+
   if (!game || !quiz) return <section className="py-24 text-center"><h1 className="page-title">No active game</h1><button className="btn-primary mt-8" onClick={onSetup}>Set up a game</button></section>
   const spin = () => {
     if (isSpinning) return
@@ -147,7 +228,6 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
     if (finishingQuiz) window.setTimeout(playQuizCelebration, 1200)
     onUpdate({ ...game, completedQuestionIds: [...game.completedQuestionIds, activeQuestion.id] })
   }
-  const closeQuestion = () => { setActiveQuestion(null); setSelectedAnswer(null) }
   const isCorrect = activeQuestion && selectedAnswer === activeQuestion.correctAnswer
   const displayedCorrectAnswer = activeQuestion ? optionOrder.indexOf(activeQuestion.correctAnswer) : -1
   const complete = game.completedQuestionIds.length === quiz.questions.length
@@ -158,7 +238,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
       <section className="card text-center lg:sticky lg:top-6 lg:self-start">
         <p className="text-sm font-extrabold uppercase tracking-[.18em] text-ink/45">Current student</p>
         <div className="relative mx-auto mt-7 h-64 w-64 max-w-full">
-          <motion.div animate={{ rotate: rotation }} transition={{ duration: 1.7, ease: [0.12, 0.72, 0.18, 1] }} className="h-full w-full drop-shadow-xl">
+          <motion.div animate={{ rotate: rotation }} transition={{ duration: shouldReduceMotion ? 0 : 1.7, ease: [0.12, 0.72, 0.18, 1] }} className="h-full w-full drop-shadow-xl">
             <NumberWheel count={game.studentCount} />
           </motion.div>
           <span className="wheel-pointer" />
@@ -166,7 +246,8 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
         <AnimatePresence mode="wait"><motion.div key={isSpinning ? 'spinning' : game.currentStudent ?? 'none'} initial={{ opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} className="mt-6 min-h-16">
           {isSpinning ? <p className="text-xl font-black text-coral">Round and round…</p> : game.currentStudent ? <><p className="text-sm font-bold text-ink/45">It’s your turn</p><p className="text-3xl font-black text-coral">Student #{game.currentStudent} 🎉</p></> : <p className="text-xl font-black text-ink/45">Not selected yet</p>}
         </motion.div></AnimatePresence>
-        <button className="btn-primary mt-4 w-full justify-center" onClick={spin} disabled={isSpinning}><RotateCw className={isSpinning ? 'animate-spin' : ''} size={20} /> {isSpinning ? 'Spinning…' : 'Spin the wheel'}</button>
+        <p className="sr-only" aria-live="polite">{!isSpinning && game.currentStudent ? `Student ${game.currentStudent} selected.` : ''}</p>
+        <button ref={spinButtonRef} className="btn-primary mt-4 w-full justify-center" onClick={spin} disabled={isSpinning}><RotateCw className={isSpinning ? 'animate-spin' : ''} size={20} /> {isSpinning ? 'Spinning…' : 'Spin the wheel'}</button>
         <div className="mt-6 flex flex-wrap justify-center gap-2"><button className="btn-quiet text-sm" onClick={onSetup}><Pencil size={16} /> Setup</button><button className="btn-quiet text-sm text-red-600" onClick={onEnd}><X size={16} /> End</button></div>
       </section>
       <section className="card">
@@ -174,12 +255,14 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{quiz.questions.map((question, index) => { const used = game.completedQuestionIds.includes(question.id); return <motion.button layout key={question.id} whileHover={used ? undefined : { y: -5, rotate: -1 }} whileTap={used ? undefined : { scale: .96 }} disabled={used} onClick={() => chooseCard(question)} className={`question-card ${used ? 'used' : ''}`}><span className="card-shine" />{used ? <><Check size={30} /><span className="text-sm">Completed</span></> : <><CircleHelp size={30} /><span className="text-3xl">{index + 1}</span></>}</motion.button> })}</div>
       </section>
     </div>
-    <AnimatePresence>{activeQuestion && <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} role="dialog" aria-modal="true" aria-labelledby="question-title"><motion.section initial={{ opacity: 0, y: 30, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: .97 }} className={`question-modal ${selectedAnswer !== null ? 'result-modal' : ''}`}>
+    <AnimatePresence>{activeQuestion && <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="question-title" aria-describedby="question-dialog-description" initial={{ opacity: 0, y: 30, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: .97 }} className={`question-modal outline-none ${selectedAnswer !== null ? 'result-modal' : ''}`}>
+      <p id="question-dialog-description" className="sr-only">{selectedAnswer === null ? 'Choose one of four answer options. Press Escape to close.' : 'Answer feedback and explanation. Press Escape to close.'}</p>
       <AnimatePresence mode="wait" initial={false}>{selectedAnswer === null ? <motion.div key="question" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-        <div className="flex items-center justify-between"><span className="rounded-full bg-[#fff1ef] px-4 py-2 text-sm font-black text-coral">Student #{game.currentStudent ?? '—'}</span><button className="icon-btn" onClick={closeQuestion} aria-label="Close question"><X /></button></div>
+        <div className="flex items-center justify-between"><span className="rounded-full bg-[#fff1ef] px-4 py-2 text-sm font-black text-coral">Student #{game.currentStudent ?? '—'}</span><button ref={initialFocusRef} className="icon-btn" onClick={closeQuestion} aria-label="Close question"><X /></button></div>
         <h2 id="question-title" className="mt-7 text-2xl font-black leading-tight sm:text-4xl">{activeQuestion.question}</h2>
         <div className="mt-7 grid gap-3 sm:grid-cols-2">{optionOrder.map((originalIndex, displayIndex) => <button onClick={() => answer(originalIndex)} key={originalIndex} className="answer-option"><span>{String.fromCharCode(65 + displayIndex)}</span>{activeQuestion.options[originalIndex]}</button>)}</div>
       </motion.div> : <motion.div key="result" initial={{ opacity: 0, scale: .92 }} animate={{ opacity: 1, scale: 1 }} className={`result-stage ${isCorrect ? 'correct' : 'wrong'}`}>
+        <p className="sr-only" role="status">{isCorrect ? 'Correct answer.' : `Incorrect answer. The correct answer is ${activeQuestion.options[activeQuestion.correctAnswer]}.`} {activeQuestion.explanation}{complete ? ' Quiz completed.' : ''}</p>
         {(isCorrect || complete) && <Confetti />}
         {complete && <motion.div initial={{ y: -15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="completion-badge"><Trophy size={22} /> Quiz completed! 🎉</motion.div>}
         <motion.div initial={{ scale: .65, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', bounce: .5 }} className={`result-icon ${isCorrect ? 'correct' : 'wrong'}`}>{isCorrect ? <Check size={54} strokeWidth={4} /> : <X size={54} strokeWidth={4} />}</motion.div>
@@ -188,7 +271,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
         <h2 id="question-title" className="relative mt-2 text-3xl font-black sm:text-4xl">{isCorrect ? 'Excellent! Great job!' : 'Good try! You’ve got this.'}</h2>
         {!isCorrect && <div className="result-answer"><span>{String.fromCharCode(65 + displayedCorrectAnswer)}</span><strong>{activeQuestion.options[activeQuestion.correctAnswer]}</strong></div>}
         <p className="relative mx-auto mt-4 max-w-2xl leading-7 text-ink/70">{activeQuestion.explanation}</p>
-        {complete ? <div className="relative mt-5 border-t border-ink/10 pt-5"><p className="font-black">Great job, everyone! 👏 You completed the quiz.</p><div className="mt-4 flex flex-wrap justify-center gap-3"><button className="btn-secondary" onClick={() => { closeQuestion(); restart() }}><RotateCcw size={18} /> Restart</button><button className="btn-quiet" onClick={onEnd}>Dashboard</button></div></div> : <button className="btn-secondary relative mt-6" onClick={closeQuestion}>Back to cards <ArrowLeft className="rotate-180" size={18} /></button>}
+        {complete ? <div className="relative mt-5 border-t border-ink/10 pt-5"><p className="font-black">Great job, everyone! 👏 You completed the quiz.</p><div className="mt-4 flex flex-wrap justify-center gap-3"><button ref={resultActionRef} className="btn-secondary" onClick={() => { closeQuestion(); restart() }}><RotateCcw size={18} /> Restart</button><button className="btn-quiet" onClick={onEnd}>Dashboard</button></div></div> : <button ref={resultActionRef} className="btn-secondary relative mt-6" onClick={closeQuestion}>Back to cards <ArrowLeft className="rotate-180" size={18} /></button>}
       </motion.div>}</AnimatePresence>
     </motion.section></motion.div>}</AnimatePresence>
   </>
@@ -224,5 +307,7 @@ function NumberWheel({ count }: { count: number }) {
 
 const confettiColors = ['#ff8277', '#ffd86f', '#8ed9bd', '#75b9e6', '#a98bdd']
 function Confetti() {
+  const shouldReduceMotion = useReducedMotion()
+  if (shouldReduceMotion) return null
   return <div className="confetti" aria-hidden="true">{Array.from({ length: 42 }, (_, index) => <motion.i key={index} style={{ left: `${(index * 37) % 100}%`, background: confettiColors[index % confettiColors.length] }} initial={{ y: -60, rotate: 0, opacity: 1 }} animate={{ y: 420, rotate: 540 + index * 19, opacity: [1, 1, 0] }} transition={{ duration: 2.4 + (index % 5) * .22, delay: (index % 9) * .08, repeat: Infinity, repeatDelay: .6 }} />)}</div>
 }
