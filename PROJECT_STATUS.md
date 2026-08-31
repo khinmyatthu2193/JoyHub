@@ -96,6 +96,7 @@ Acceptance checks:
 | 2026-07-18 | Shuffle answer options when each question card opens | Prevents predictable answer-letter patterns while retaining the original answer key for reliable grading. |
 | 2026-08-31 | Add progressive Codex project context | Keeps repository guidance concise while routing product, architecture, UI, development, debugging, and review tasks to focused documentation. |
 | 2026-08-31 | Remove the redundant project overview from Codex context | `PRODUCT_SPEC.md` and `README.md` already cover product purpose; keeping facts in their existing source reduces drift. |
+| 2026-08-31 | Add focused game, storage, and accessibility context | These high-risk final-polish areas need deeper factual guidance without forcing unrelated tasks to load it. |
 
 ## Update template
 

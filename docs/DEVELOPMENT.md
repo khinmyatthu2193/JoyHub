@@ -20,7 +20,7 @@ Vite serves the application locally and provides hot module replacement. No envi
 | `npm run preview` | Serve the production build locally | Configured; run after build |
 | `npm run lint` | Run ESLint across the repository | Script exists, but no ESLint config is committed, so it currently fails |
 
-There is no test script or committed unit/end-to-end test setup. Until one is intentionally added, validate affected user flows manually in addition to running the build. Do not claim `npm run lint` passed unless a compatible configuration has been added and the command actually succeeds.
+There is no separate type-check script; `npm run build` runs `tsc -b` before Vite. There is no test script or committed unit/end-to-end test setup. Until one is intentionally added, validate affected user flows manually in addition to running the build. Do not claim `npm run lint` passed unless a compatible configuration has been added and the command actually succeeds.
 
 ## Configuration
 

@@ -23,7 +23,7 @@ Persisted types are defined in `src/types/quiz.ts`:
 - `Quiz` owns question content and ISO timestamp strings.
 - `GameState` references a quiz by ID and stores the class size, current student, and completed question IDs.
 
-The `storage` facade in `src/utils/localStorage.ts` is the only persistence boundary. It serializes JSON into `joyhub_quizzes_v1`, `joyhub_settings_v1`, and `joyhub_game_state_v1`, catches read/parse failures, and supplies a starter quiz or safe defaults. Writes occur after quiz saves, class setup, student spins, submitted answers, restarts, and game completion actions. Changing keys or stored shapes requires explicit compatibility/migration handling.
+The `storage` facade in `src/utils/localStorage.ts` is the persistence boundary. See `STORAGE.md` for keys, lifecycle, recovery behavior, and compatibility risks. See `GAME_FLOW.md` for persistent versus transient game state and transitions.
 
 ## Source conventions
 

@@ -30,6 +30,11 @@ Framer Motion provides page transitions, button/card movement, the wheel, modal/
 
 Answer feedback combines color, icons, text, explanation, and optional audio so meaning does not depend on color or sound alone. Preserve the encouraging copy style for both correct and incorrect answers.
 
-## Accessibility checks for UI changes
+## Interaction hierarchy
 
-Use native buttons, inputs, labels, and headings. Confirm visible keyboard focus, logical tab order, non-color status cues, named icon buttons, dialog naming/focus behavior, touch target size, zoom/reflow, and sufficient contrast. Check the affected flow at narrow tablet/mobile width and a wide laptop/projector width, with reduced motion enabled when animation changes.
+- Give each screen one obvious primary action; gameplay actions should visually dominate setup and administrative controls.
+- Keep teacher interactions short and use human-readable validation or recovery messages with a clear next action.
+- Confirm destructive data changes. Do not rely on color or sound alone for status.
+- Check the affected flow at a narrow phone/tablet width and a wide laptop/projector width.
+
+Accessibility requirements and the current implementation gaps are tracked separately in `ACCESSIBILITY.md`.
