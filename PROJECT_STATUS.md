@@ -81,7 +81,7 @@ Acceptance checks:
 
 - [ ] Complete classroom flow works without a backend
 - [ ] Refresh does not lose saved quizzes, settings, or active progress
-- [ ] `npm run build` and `npm run lint` succeed
+- [x] `npm run build` and `npm run lint` succeed
 
 ## Decision log
 
@@ -97,6 +97,7 @@ Acceptance checks:
 | 2026-08-31 | Add progressive Codex project context | Keeps repository guidance concise while routing product, architecture, UI, development, debugging, and review tasks to focused documentation. |
 | 2026-08-31 | Remove the redundant project overview from Codex context | `PRODUCT_SPEC.md` and `README.md` already cover product purpose; keeping facts in their existing source reduces drift. |
 | 2026-08-31 | Add focused game, storage, and accessibility context | These high-risk final-polish areas need deeper factual guidance without forcing unrelated tasks to load it. |
+| 2026-08-31 | Use ESLint flat configuration with existing correctness plugins | Matches ESLint 10 and protects JavaScript, TypeScript, React Hooks, and React Refresh without adding style-only dependencies. |
 
 ## Update template
 

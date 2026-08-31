@@ -18,13 +18,14 @@ Vite serves the application locally and provides hot module replacement. No envi
 | `npm run dev` | Start the Vite development server | Configured |
 | `npm run build` | Run TypeScript project builds, then create `dist/` with Vite | Configured |
 | `npm run preview` | Serve the production build locally | Configured; run after build |
-| `npm run lint` | Run ESLint across the repository | Script exists, but no ESLint config is committed, so it currently fails |
+| `npm run lint` | Run ESLint across JavaScript, TypeScript, and TSX files | Configured |
 
-There is no separate type-check script; `npm run build` runs `tsc -b` before Vite. There is no test script or committed unit/end-to-end test setup. Until one is intentionally added, validate affected user flows manually in addition to running the build. Do not claim `npm run lint` passed unless a compatible configuration has been added and the command actually succeeds.
+There is no separate type-check script; `npm run build` runs `tsc -b` before Vite. There is no test script or committed unit/end-to-end test setup. Until one is intentionally added, validate affected user flows manually in addition to running lint and the build.
 
 ## Configuration
 
 - `vite.config.ts`: React plugin only; no aliases or custom server/build behavior.
+- `eslint.config.js`: flat ESLint configuration for modern JavaScript, TypeScript/TSX, browser globals, React Hooks, and React Refresh; ignores generated Vite output and `dist/`.
 - `tsconfig.app.json`: strict TypeScript, browser/ES2022 libraries, bundler resolution, isolated modules, and no emit.
 - `tsconfig.node.json`: composite configuration for `vite.config.ts`.
 - `tailwind.config.js`: scans the HTML entry point and source JS/TS/JSX/TSX files; no theme extensions or plugins.
