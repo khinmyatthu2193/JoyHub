@@ -1,6 +1,6 @@
 # JoyHub Project Status
 
-Last updated: 2026-07-17
+Last updated: 2026-08-31
 
 Status legend: `[ ]` planned · `[~]` in progress · `[x]` complete
 
@@ -93,6 +93,9 @@ Acceptance checks:
 | 2026-07-17 | Keep quiz management and setup in a state-driven flow | Preserves fast transitions while the MVP remains small and client-only. |
 | 2026-07-17 | Persist game changes at each student spin and submitted answer | Refreshing the projector or laptop restores meaningful classroom progress. |
 | 2026-07-17 | Generate celebration sounds with the Web Audio API | Keeps chimes and applause offline-friendly, lightweight, and free of external media licensing. |
+| 2026-07-18 | Shuffle answer options when each question card opens | Prevents predictable answer-letter patterns while retaining the original answer key for reliable grading. |
+| 2026-08-31 | Add progressive Codex project context | Keeps repository guidance concise while routing product, architecture, UI, development, debugging, and review tasks to focused documentation. |
+| 2026-08-31 | Remove the redundant project overview from Codex context | `PRODUCT_SPEC.md` and `README.md` already cover product purpose; keeping facts in their existing source reduces drift. |
 
 ## Update template
 

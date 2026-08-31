@@ -12,6 +12,14 @@ type QuizDraft = Pick<Quiz, 'id' | 'title' | 'description' | 'questions' | 'crea
 const id = () => crypto.randomUUID()
 const emptyQuestion = (): Question => ({ id: id(), question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' })
 const emptyQuiz = (): QuizDraft => ({ id: id(), title: '', description: '', questions: [emptyQuestion()], createdAt: new Date().toISOString() })
+const shuffledOptionIndexes = (length: number) => {
+  const indexes = Array.from({ length }, (_, index) => index)
+  for (let index = indexes.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    ;[indexes[index], indexes[swapIndex]] = [indexes[swapIndex], indexes[index]]
+  }
+  return indexes
+}
 
 function Shell({ children, onHome }: { children: React.ReactNode; onHome: () => void }) {
   return <main className="min-h-screen overflow-hidden px-5 py-7 sm:px-10 lg:px-16">
@@ -106,6 +114,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   const [isSpinning, setIsSpinning] = useState(false)
   const [rotation, setRotation] = useState(0)
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null)
+  const [optionOrder, setOptionOrder] = useState<number[]>([])
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   if (!game || !quiz) return <section className="py-24 text-center"><h1 className="page-title">No active game</h1><button className="btn-primary mt-8" onClick={onSetup}>Set up a game</button></section>
   const spin = () => {
@@ -125,6 +134,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   const chooseCard = (question: Question) => {
     if (game.completedQuestionIds.includes(question.id)) return
     setSelectedAnswer(null)
+    setOptionOrder(shuffledOptionIndexes(question.options.length))
     setActiveQuestion(question)
   }
   const answer = (option: number) => {
@@ -139,6 +149,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   }
   const closeQuestion = () => { setActiveQuestion(null); setSelectedAnswer(null) }
   const isCorrect = activeQuestion && selectedAnswer === activeQuestion.correctAnswer
+  const displayedCorrectAnswer = activeQuestion ? optionOrder.indexOf(activeQuestion.correctAnswer) : -1
   const complete = game.completedQuestionIds.length === quiz.questions.length
   const restart = () => onUpdate({ ...game, currentStudent: null, completedQuestionIds: [] })
 
@@ -167,7 +178,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
       <AnimatePresence mode="wait" initial={false}>{selectedAnswer === null ? <motion.div key="question" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
         <div className="flex items-center justify-between"><span className="rounded-full bg-[#fff1ef] px-4 py-2 text-sm font-black text-coral">Student #{game.currentStudent ?? '—'}</span><button className="icon-btn" onClick={closeQuestion} aria-label="Close question"><X /></button></div>
         <h2 id="question-title" className="mt-7 text-2xl font-black leading-tight sm:text-4xl">{activeQuestion.question}</h2>
-        <div className="mt-7 grid gap-3 sm:grid-cols-2">{activeQuestion.options.map((option, index) => <button onClick={() => answer(index)} key={index} className="answer-option"><span>{String.fromCharCode(65 + index)}</span>{option}</button>)}</div>
+        <div className="mt-7 grid gap-3 sm:grid-cols-2">{optionOrder.map((originalIndex, displayIndex) => <button onClick={() => answer(originalIndex)} key={originalIndex} className="answer-option"><span>{String.fromCharCode(65 + displayIndex)}</span>{activeQuestion.options[originalIndex]}</button>)}</div>
       </motion.div> : <motion.div key="result" initial={{ opacity: 0, scale: .92 }} animate={{ opacity: 1, scale: 1 }} className={`result-stage ${isCorrect ? 'correct' : 'wrong'}`}>
         {(isCorrect || complete) && <Confetti />}
         {complete && <motion.div initial={{ y: -15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="completion-badge"><Trophy size={22} /> Quiz completed! 🎉</motion.div>}
@@ -175,7 +186,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
         <div className="relative mt-2 text-2xl" aria-hidden="true">{isCorrect ? '✅ 🎉' : '❌ 🌱'}</div>
         <p className="relative mt-3 text-xs font-extrabold uppercase tracking-[.18em] text-ink/45">{isCorrect ? 'Correct answer' : 'Incorrect answer'}</p>
         <h2 id="question-title" className="relative mt-2 text-3xl font-black sm:text-4xl">{isCorrect ? 'Excellent! Great job!' : 'Good try! You’ve got this.'}</h2>
-        {!isCorrect && <div className="result-answer"><span>{String.fromCharCode(65 + activeQuestion.correctAnswer)}</span><strong>{activeQuestion.options[activeQuestion.correctAnswer]}</strong></div>}
+        {!isCorrect && <div className="result-answer"><span>{String.fromCharCode(65 + displayedCorrectAnswer)}</span><strong>{activeQuestion.options[activeQuestion.correctAnswer]}</strong></div>}
         <p className="relative mx-auto mt-4 max-w-2xl leading-7 text-ink/70">{activeQuestion.explanation}</p>
         {complete ? <div className="relative mt-5 border-t border-ink/10 pt-5"><p className="font-black">Great job, everyone! 👏 You completed the quiz.</p><div className="mt-4 flex flex-wrap justify-center gap-3"><button className="btn-secondary" onClick={() => { closeQuestion(); restart() }}><RotateCcw size={18} /> Restart</button><button className="btn-quiet" onClick={onEnd}>Dashboard</button></div></div> : <button className="btn-secondary relative mt-6" onClick={closeQuestion}>Back to cards <ArrowLeft className="rotate-180" size={18} /></button>}
       </motion.div>}</AnimatePresence>
