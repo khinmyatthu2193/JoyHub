@@ -9,6 +9,7 @@ This is an audit of the current implementation plus the target for future change
 - The question overlay uses `role="dialog"`, `aria-modal="true"`, and `aria-labelledby` connected to its heading.
 - Opening the question dialog focuses its close control, traps Tab/Shift+Tab, and supports Escape. Closing returns to the originating card when it remains available, or to Spin after that card becomes completed; feedback moves focus to the next available action.
 - The student wheel is an SVG image with an accessible label. Decorative logo/confetti/emoji treatment is hidden where marked.
+- Question cards use native disabled states until a student is selected, with visible instructions explaining how to unlock the board. A selected student prevents another spin until a card is answered.
 - Completed cards and unavailable actions are natively disabled. Correct/incorrect feedback uses words and icons as well as color and sound.
 - Shared controls have a consistent high-contrast `focus-visible` outline, and inputs retain their existing focus treatment. New views focus their primary heading.
 - Quiz fields use explicit labels, required/invalid state, and error-summary relationships. Quiz choices expose their pressed state, and setup/validation errors use alert semantics.

@@ -206,10 +206,11 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   const [isSpinning, setIsSpinning] = useState(false)
   const [rotation, setRotation] = useState(0)
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null)
+  const [activeStudent, setActiveStudent] = useState<WheelStudent | null>(null)
   const [optionOrder, setOptionOrder] = useState<number[]>([])
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const shouldReduceMotion = useReducedMotion()
-  const closeQuestion = useCallback(() => { setActiveQuestion(null); setSelectedAnswer(null) }, [])
+  const closeQuestion = useCallback(() => { setActiveQuestion(null); setActiveStudent(null); setSelectedAnswer(null) }, [])
   const spinButtonRef = useRef<HTMLButtonElement>(null)
   const { dialogRef, initialFocusRef } = useDialogFocus(Boolean(activeQuestion), closeQuestion, spinButtonRef)
   const resultActionRef = useRef<HTMLButtonElement>(null)
@@ -227,7 +228,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
     return true
   })
   const spin = () => {
-    if (isSpinning || !eligibleStudents.length) return
+    if (isSpinning || currentStudent || !eligibleStudents.length) return
     const studentIndex = Math.floor(Math.random() * eligibleStudents.length)
     const student = eligibleStudents[studentIndex]
     const slice = 360 / eligibleStudents.length
@@ -242,9 +243,10 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
     }, shouldReduceMotion ? 150 : 1700)
   }
   const chooseCard = (question: Question) => {
-    if (game.completedQuestionIds.includes(question.id)) return
+    if (!currentStudent || isSpinning || game.completedQuestionIds.includes(question.id)) return
     setSelectedAnswer(null)
     setOptionOrder(shuffledOptionIndexes(question.options.length))
+    setActiveStudent(currentStudent)
     setActiveQuestion(question)
   }
   const answer = (option: number) => {
@@ -255,7 +257,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
     if (correct) { playCorrectChime(); playCorrectVoice() }
     else playIncorrectVoice()
     if (finishingQuiz) window.setTimeout(playQuizCelebration, 1200)
-    onUpdate({ ...game, completedQuestionIds: [...game.completedQuestionIds, activeQuestion.id] })
+    onUpdate({ ...game, currentStudentId: null, completedQuestionIds: [...game.completedQuestionIds, activeQuestion.id] })
   }
   const isCorrect = activeQuestion && selectedAnswer === activeQuestion.correctAnswer
   const displayedCorrectAnswer = activeQuestion ? optionOrder.indexOf(activeQuestion.correctAnswer) : -1
@@ -272,23 +274,24 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
           </motion.div>
           <span className="wheel-pointer" />
         </div>
-        <AnimatePresence mode="wait"><motion.div key={isSpinning ? 'spinning' : game.currentStudentId ?? 'none'} initial={{ opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} className="mt-6 min-h-16">
-          {isSpinning ? <p className="text-xl font-black text-coral">Round and round…</p> : currentStudent ? <><p className="text-sm font-bold text-ink/45">It’s your turn</p><p className="text-3xl font-black" style={{ color: currentStudent.color }}><span aria-hidden="true">{currentStudent.icon && `${currentStudent.icon} `}</span>{currentStudent.name} 🎉</p></> : <p className="text-xl font-black text-ink/45">Not selected yet</p>}
+        <AnimatePresence mode="wait"><motion.div key={isSpinning ? 'spinning' : game.currentStudentId ?? 'none'} initial={{ opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} className="mt-6 min-h-20">
+          {isSpinning ? <p className="text-xl font-black text-coral">Round and round…</p> : currentStudent ? <><p className="text-sm font-extrabold uppercase tracking-[.16em] text-ink/50">Student selected</p><p className="mt-1 text-4xl font-black sm:text-5xl" style={{ color: currentStudent.color }}><span aria-hidden="true">{currentStudent.icon && `${currentStudent.icon} `}</span>{currentStudent.name}</p></> : <><p className="text-xl font-black text-ink/55">Ready for the next round?</p><p className="mt-1 text-sm font-bold text-ink/45">Spin to choose a student.</p></>}
         </motion.div></AnimatePresence>
         <p className="sr-only" aria-live="polite">{!isSpinning && currentStudent ? `${currentStudent.name} selected.` : ''}</p>
-        <button ref={spinButtonRef} className="btn-primary mt-4 w-full justify-center" onClick={spin} disabled={isSpinning || !eligibleStudents.length}><RotateCw className={isSpinning ? 'animate-spin' : ''} size={20} /> {isSpinning ? 'Spinning…' : eligibleStudents.length ? 'Spin the wheel' : 'Everyone reached the limit'}</button>
-        {game.winnerPolicy !== 'unlimited' && <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-[#f7f2e9] px-4 py-3 text-left text-sm"><span><strong className="block">{eligibleStudents.length} eligible</strong><span className="text-ink/55">{game.winnerPolicy === 'remove' ? 'Winners leave the wheel' : `${game.maxWins} wins maximum`}</span></span><button className="btn-quiet !px-3 !py-2" onClick={() => onUpdate({ ...game, currentStudentId: null, winCounts: {} })}>Reset wheel</button></div>}
+        <button ref={spinButtonRef} className="btn-primary mt-4 w-full justify-center" onClick={spin} disabled={isSpinning || Boolean(currentStudent) || !eligibleStudents.length}><RotateCw className={isSpinning ? 'animate-spin' : ''} size={20} /> {isSpinning ? 'Spinning…' : currentStudent ? 'Choose a card to continue' : eligibleStudents.length ? game.completedQuestionIds.length ? 'Spin for the next student' : 'Spin the wheel' : 'Everyone reached the limit'}</button>
+        {game.winnerPolicy !== 'unlimited' && <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-[#f7f2e9] px-4 py-3 text-left text-sm"><span><strong className="block">{eligibleStudents.length} eligible</strong><span className="text-ink/55">{game.winnerPolicy === 'remove' ? 'Winners leave the wheel' : `${game.maxWins} wins maximum`}</span></span><button className="btn-quiet !px-3 !py-2" disabled={Boolean(currentStudent)} onClick={() => onUpdate({ ...game, currentStudentId: null, winCounts: {} })}>Reset wheel</button></div>}
         <div className="mt-6 flex flex-wrap justify-center gap-2"><button className="btn-quiet text-sm" onClick={onSetup}><Pencil size={16} /> Setup</button><button className="btn-quiet text-sm text-red-600" onClick={onEnd}><X size={16} /> End</button></div>
       </section>
-      <section className="card">
-        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow !mb-2">Question board</p><h2 className="text-3xl font-black">Choose a hidden card</h2></div><span className="rounded-full bg-[#f7f2e9] px-4 py-2 text-sm font-bold">{quiz.questions.length - game.completedQuestionIds.length} remaining</span></div>
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{quiz.questions.map((question, index) => { const used = game.completedQuestionIds.includes(question.id); return <motion.button layout key={question.id} whileHover={used ? undefined : { y: -5, rotate: -1 }} whileTap={used ? undefined : { scale: .96 }} disabled={used} onClick={() => chooseCard(question)} className={`question-card ${used ? 'used' : ''}`}><span className="card-shine" />{used ? <><Check size={30} /><span className="text-sm">Completed</span></> : <><CircleHelp size={30} /><span className="text-3xl">{index + 1}</span></>}</motion.button> })}</div>
+      <section className={`card transition ${currentStudent ? '' : 'question-board-locked'}`} aria-labelledby="question-board-title" aria-describedby={!currentStudent ? 'question-board-instruction' : undefined}>
+        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow !mb-2">Question board</p><h2 id="question-board-title" className="text-3xl font-black">{currentStudent ? `${currentStudent.name}, choose a question card.` : 'Spin the wheel to choose a student.'}</h2></div><span className="rounded-full bg-[#f7f2e9] px-4 py-2 text-sm font-bold">{quiz.questions.length - game.completedQuestionIds.length} remaining</span></div>
+        {!currentStudent && <div id="question-board-instruction" className="mt-6 rounded-2xl border-2 border-dashed border-[#e6dcca] bg-[#fffaf2] p-5 text-center"><RotateCw className="mx-auto text-coral" aria-hidden="true" /><p className="mt-2 text-lg font-black">Spin the wheel to choose a student.</p><p className="mt-1 text-sm font-bold text-ink/55">Question cards unlock after the wheel stops.</p></div>}
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{quiz.questions.map((question, index) => { const used = game.completedQuestionIds.includes(question.id); const locked = !currentStudent || isSpinning; return <motion.button layout key={question.id} whileHover={used || locked ? undefined : { y: -5, rotate: -1 }} whileTap={used || locked ? undefined : { scale: .96 }} disabled={used || locked} onClick={() => chooseCard(question)} className={`question-card ${used ? 'used' : locked ? 'locked' : ''}`}><span className="card-shine" />{used ? <><Check size={30} /><span className="text-sm">Completed</span></> : <><CircleHelp size={30} /><span className="text-3xl">{index + 1}</span></>}</motion.button> })}</div>
       </section>
     </div>
     <AnimatePresence>{activeQuestion && <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="question-title" aria-describedby="question-dialog-description" initial={{ opacity: 0, y: 30, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: .97 }} className={`question-modal outline-none ${selectedAnswer !== null ? 'result-modal' : ''}`}>
       <p id="question-dialog-description" className="sr-only">{selectedAnswer === null ? 'Choose one of four answer options. Press Escape to close.' : 'Answer feedback and explanation. Press Escape to close.'}</p>
       <AnimatePresence mode="wait" initial={false}>{selectedAnswer === null ? <motion.div key="question" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-        <div className="flex items-center justify-between"><span className="rounded-full bg-[#fff1ef] px-4 py-2 text-sm font-black text-coral">{currentStudent ? `${currentStudent.icon} ${currentStudent.name}`.trim() : 'No student selected'}</span><button ref={initialFocusRef} className="icon-btn" onClick={closeQuestion} aria-label="Close question"><X /></button></div>
+        <div className="flex items-center justify-between"><span className="rounded-full bg-[#fff1ef] px-4 py-2 text-sm font-black text-coral">{activeStudent ? `${activeStudent.icon} ${activeStudent.name}`.trim() : 'Selected student'}</span><button ref={initialFocusRef} className="icon-btn" onClick={closeQuestion} aria-label="Close question"><X /></button></div>
         <h2 id="question-title" className="mt-7 text-2xl font-black leading-tight sm:text-4xl">{activeQuestion.question}</h2>
         <div className="mt-7 grid gap-3 sm:grid-cols-2">{optionOrder.map((originalIndex, displayIndex) => <button onClick={() => answer(originalIndex)} key={originalIndex} className="answer-option"><span>{String.fromCharCode(65 + displayIndex)}</span>{activeQuestion.options[originalIndex]}</button>)}</div>
       </motion.div> : <motion.div key="result" initial={{ opacity: 0, scale: .92 }} animate={{ opacity: 1, scale: 1 }} className={`result-stage ${isCorrect ? 'correct' : 'wrong'}`}>
@@ -301,7 +304,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
         <h2 id="question-title" className="relative mt-2 text-3xl font-black sm:text-4xl">{isCorrect ? 'Excellent! Great job!' : 'Good try! You’ve got this.'}</h2>
         {!isCorrect && <div className="result-answer"><span>{String.fromCharCode(65 + displayedCorrectAnswer)}</span><strong>{activeQuestion.options[activeQuestion.correctAnswer]}</strong></div>}
         <p className="relative mx-auto mt-4 max-w-2xl leading-7 text-ink/70">{activeQuestion.explanation}</p>
-        {complete ? <div className="relative mt-5 border-t border-ink/10 pt-5"><p className="font-black">Great job, everyone! 👏 You completed the quiz.</p><div className="mt-4 flex flex-wrap justify-center gap-3"><button ref={resultActionRef} className="btn-secondary" onClick={() => { closeQuestion(); restart() }}><RotateCcw size={18} /> Restart</button><button className="btn-quiet" onClick={onEnd}>Dashboard</button></div></div> : <button ref={resultActionRef} className="btn-secondary relative mt-6" onClick={closeQuestion}>Back to cards <ArrowLeft className="rotate-180" size={18} /></button>}
+        {complete ? <div className="relative mt-5 border-t border-ink/10 pt-5"><p className="font-black">Great job, everyone! 👏 You completed the quiz.</p><div className="mt-4 flex flex-wrap justify-center gap-3"><button ref={resultActionRef} className="btn-secondary" onClick={() => { closeQuestion(); restart() }}><RotateCcw size={18} /> Restart</button><button className="btn-quiet" onClick={onEnd}>Dashboard</button></div></div> : <button ref={resultActionRef} className="btn-primary relative mt-6" onClick={closeQuestion}><RotateCw size={18} /> Spin for the next student</button>}
       </motion.div>}</AnimatePresence>
     </motion.section></motion.div>}</AnimatePresence>
   </>

@@ -32,6 +32,8 @@ body { margin: 0; min-width: 320px; min-height: 100vh; }
 .question-card { @apply relative flex aspect-[4/3] flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl bg-[#263238] font-black text-white shadow-lg transition disabled:cursor-default; }
 .question-card:not(.used) { background-image: linear-gradient(145deg, #384950, #202b30); }
 .question-card.used { @apply bg-[#e9e4d9] text-[#263238]/40 shadow-none; }
+.question-card.locked { @apply bg-[#e9e4d9] text-[#263238]/35 shadow-none; }
+.question-board-locked { @apply border-[#eee5d5] bg-white/60; }
 .card-shine { @apply absolute -right-6 -top-8 h-20 w-20 rounded-full bg-white/10; }
 .modal-backdrop { @apply fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-[#172126]/65 p-4 backdrop-blur-sm sm:p-8; }
 .question-modal { @apply my-auto w-full max-w-4xl rounded-[2rem] bg-[#fffaf2] p-6 shadow-2xl sm:p-10; }

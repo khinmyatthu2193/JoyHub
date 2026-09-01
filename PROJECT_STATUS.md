@@ -61,6 +61,7 @@ Acceptance checks:
 - [x] Prevent reuse of completed questions
 - [x] Restore active progress after refresh
 - [x] Customizable student wheel with names, colors, icons, and winner-repeat rules
+- [x] Guided round sequence that prevents spinning or choosing cards out of order
 
 Acceptance checks:
 
@@ -101,6 +102,7 @@ Acceptance checks:
 | 2026-08-31 | Use ESLint flat configuration with existing correctness plugins | Matches ESLint 10 and protects JavaScript, TypeScript, React Hooks, and React Refresh without adding style-only dependencies. |
 | 2026-08-31 | Use native controls plus focused accessibility helpers | Adds visible focus, dialog focus management, form relationships, announcements, and reduced-motion support without changing game rules or storage. |
 | 2026-09-01 | Persist customizable wheel entries and winner eligibility | Lets teachers use student names and visual markers while choosing unlimited, once-only, or capped repeat wins; legacy numbered games normalize safely. |
+| 2026-09-01 | Gate classroom actions by round stage | Keeps the teacher-led sequence clear by requiring a spin before card selection and a new spin after feedback, using native disabled controls and visible instructions. |
 
 ## Update template
 
