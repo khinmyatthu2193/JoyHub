@@ -75,6 +75,7 @@ Acceptance checks:
 - [x] Quiz-complete celebration
 - [x] Restart and return-to-dashboard actions
 - [x] Page transitions and reduced-motion support
+- [x] Teacher-first home screen with dominant classroom launch and saved progress
 - [ ] Empty, error, and confirmation states
 - [~] Accessibility and keyboard pass
 - [ ] Final responsive QA
@@ -103,6 +104,7 @@ Acceptance checks:
 | 2026-08-31 | Use native controls plus focused accessibility helpers | Adds visible focus, dialog focus management, form relationships, announcements, and reduced-motion support without changing game rules or storage. |
 | 2026-09-01 | Persist customizable wheel entries and winner eligibility | Lets teachers use student names and visual markers while choosing unlimited, once-only, or capped repeat wins; legacy numbered games normalize safely. |
 | 2026-09-01 | Gate classroom actions by round stage | Keeps the teacher-led sequence clear by requiring a spin before card selection and a new spin after feedback, using native disabled controls and visible instructions. |
+| 2026-09-01 | Make classroom launch the home-screen priority | Reframes JoyHub around starting or continuing today’s activity while keeping quiz creation and the library available as secondary preparation actions. |
 
 ## Update template
 

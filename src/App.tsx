@@ -132,7 +132,7 @@ export function App() {
   const updateGame = (next: GameState) => { setGame(next); storage.saveGame(next) }
 
   return <Shell onHome={goHome}>
-    {view === 'dashboard' ? <Dashboard key="dashboard" quizCount={quizzes.length} onCreate={() => editQuiz()} onManage={() => setView('quizzes')} onStart={() => setView('setup')} hasGame={Boolean(game)} onResume={() => setView('game')} /> :
+    {view === 'dashboard' ? <Dashboard key="dashboard" quizCount={quizzes.length} game={game} activeQuiz={quizzes.find(q => q.id === game?.quizId)} onCreate={() => editQuiz()} onManage={() => setView('quizzes')} onStart={() => setView('setup')} onResume={() => setView('game')} /> :
       view === 'quizzes' ? <QuizList key="quizzes" quizzes={quizzes} onBack={goHome} onCreate={() => editQuiz()} onEdit={editQuiz} onDelete={removeQuiz} /> :
       view === 'editor' && draft ? <QuizEditor key="editor" draft={draft} setDraft={setDraft} errors={errors} onBack={() => setView('quizzes')} onSave={validateAndSave} /> :
       view === 'setup' ? <ClassSetup key="setup" quizzes={quizzes} selected={selectedQuizId} setSelected={setSelectedQuizId} settings={classSettings} setSettings={setClassSettings} errors={errors} onBack={goHome} onStart={startGame} /> :
@@ -140,14 +140,26 @@ export function App() {
   </Shell>
 }
 
-function Dashboard({ quizCount, onCreate, onManage, onStart, hasGame, onResume }: { quizCount: number; onCreate: () => void; onManage: () => void; onStart: () => void; hasGame: boolean; onResume: () => void }) {
+function Dashboard({ quizCount, game, activeQuiz, onCreate, onManage, onStart, onResume }: { quizCount: number; game: GameState | null; activeQuiz?: Quiz; onCreate: () => void; onManage: () => void; onStart: () => void; onResume: () => void }) {
   const headingRef = useHeadingFocus()
-  const actions = [
-    { title: 'Create a quiz', text: 'Build questions for your next lesson.', icon: Plus, color: 'bg-coral', action: onCreate },
-    { title: 'Manage quizzes', text: `${quizCount} ${quizCount === 1 ? 'quiz' : 'quizzes'} ready to use.`, icon: BookOpen, color: 'bg-sun', action: onManage },
-    { title: hasGame ? 'Resume classroom game' : 'Start classroom game', text: hasGame ? 'Your classroom progress is safely stored.' : 'Pick a quiz and bring the room to life.', icon: Play, color: 'bg-mint', action: hasGame ? onResume : onStart },
+  const hasGame = Boolean(game)
+  const completed = game?.completedQuestionIds.length ?? 0
+  const total = activeQuiz?.questions.length ?? 0
+  const progress = total ? Math.min(100, completed / total * 100) : 0
+  const secondaryActions = [
+    { title: 'Create quiz', text: 'Build a new activity', icon: Plus, color: 'bg-sun', action: onCreate },
+    { title: 'Quiz library', text: `${quizCount} ${quizCount === 1 ? 'activity' : 'activities'} ready`, icon: BookOpen, color: 'bg-mint', action: onManage },
   ]
-  return <section className="py-16 sm:py-24"><p className="eyebrow">Interactive classroom joy</p><h1 ref={headingRef} tabIndex={-1} className="max-w-4xl text-5xl font-black leading-[.98] tracking-tight text-ink outline-none sm:text-7xl">Teach with joy.<br /><span className="text-coral">Learn with confidence.</span> 🌱</h1><p className="mt-7 max-w-2xl text-lg leading-8 text-ink/65">Turn everyday lessons into lively classroom moments with quizzes, surprise questions, and plenty of encouragement.</p><div className="mt-14 grid gap-5 md:grid-cols-3">{actions.map((a, i) => <motion.button key={a.title} initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * .07 }} whileHover={{ y: -6 }} onClick={a.action} className="card text-left"><span className={`grid h-14 w-14 place-items-center rounded-2xl ${a.color}`}><a.icon /></span><h2 className="mt-8 text-2xl font-black">{a.title}</h2><p className="mt-2 leading-7 text-ink/60">{a.text}</p><span className="mt-7 inline-block font-bold text-coral">Let’s go →</span></motion.button>)}</div></section>
+  return <section className="py-10 sm:py-14 lg:py-16"><div className="grid items-center gap-8 lg:grid-cols-[.9fr_1.1fr] lg:gap-12">
+    <div><p className="eyebrow">Today’s classroom activity</p><h1 ref={headingRef} tabIndex={-1} className="max-w-3xl text-5xl font-black leading-[.98] tracking-tight text-ink outline-none sm:text-7xl">Teach with joy.<br /><span className="text-coral">Learn with confidence.</span> 🌱</h1><p className="mt-6 max-w-xl text-lg leading-8 text-ink/65">Bring the class together with a quick spin, a surprise question, and plenty of encouragement.</p></div>
+    <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-[2.25rem] border border-white/80 bg-[#263238] p-7 text-white shadow-2xl shadow-[#263238]/15 sm:p-9" aria-labelledby="classroom-launch-title">
+      <span className="absolute -right-12 -top-16 h-48 w-48 rounded-full bg-[#ff8277]/90" aria-hidden="true" /><span className="absolute -bottom-20 right-20 h-40 w-40 rounded-full bg-[#8ed9bd]/70" aria-hidden="true" />
+      <div className="relative"><span className="grid h-14 w-14 place-items-center rounded-2xl bg-coral text-white shadow-lg shadow-black/10"><Play fill="currentColor" aria-hidden="true" /></span><p className="mt-7 text-sm font-extrabold uppercase tracking-[.2em] text-white/60">{hasGame ? 'Saved classroom' : 'Ready when you are'}</p><h2 id="classroom-launch-title" className="mt-2 text-3xl font-black sm:text-4xl">{hasGame ? 'Continue Classroom' : 'Start Classroom Game'}</h2>
+        {hasGame ? <div className="mt-5 rounded-2xl bg-white/10 p-4"><p className="text-xl font-black">{activeQuiz?.title ?? 'Saved classroom activity'}</p><div className="mt-3 flex items-center justify-between gap-3 text-sm font-bold text-white/75"><span>{total ? `${completed} of ${total} questions complete` : `${completed} questions complete`}</span>{total > 0 && <span>{Math.round(progress)}%</span>}</div>{total > 0 && <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-label="Quiz progress" aria-valuemin={0} aria-valuemax={total} aria-valuenow={Math.min(completed, total)}><div className="h-full rounded-full bg-mint" style={{ width: `${progress}%` }} /></div>}</div> : <p className="mt-4 max-w-md text-lg leading-7 text-white/70">Choose a quiz, prepare the wheel, and start today’s classroom activity.</p>}
+        <button className="btn-primary mt-7 w-full justify-center !bg-[#ff8277] !py-4 text-lg hover:!bg-[#ed675c]" onClick={hasGame ? onResume : onStart}><Play size={21} fill="currentColor" /> {hasGame ? 'Continue activity' : 'Choose an activity'}</button>
+      </div>
+    </motion.section>
+  </div><div className="mt-8 border-t border-ink/10 pt-6"><p className="text-sm font-extrabold uppercase tracking-[.18em] text-ink/45">Prepare an activity</p><div className="mt-3 grid gap-3 sm:grid-cols-2">{secondaryActions.map((action, index) => <motion.button key={action.title} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .08 + index * .06 }} whileHover={{ y: -3 }} onClick={action.action} className="flex items-center gap-4 rounded-2xl border border-white/80 bg-white/65 p-4 text-left shadow-soft backdrop-blur transition hover:bg-white"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${action.color}`}><action.icon size={20} aria-hidden="true" /></span><span><strong className="block text-lg font-black">{action.title}</strong><span className="text-sm font-bold text-ink/50">{action.text}</span></span><span className="ml-auto text-xl font-black text-coral" aria-hidden="true">→</span></motion.button>)}</div></div></section>
 }
 
 function QuizList({ quizzes, onBack, onCreate, onEdit, onDelete }: { quizzes: Quiz[]; onBack: () => void; onCreate: () => void; onEdit: (q: Quiz) => void; onDelete: (id: string) => void }) {
