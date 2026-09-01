@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'framer-motion'
 import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, CircleHelp, Pencil, Play, Plus, RotateCcw, RotateCw, Trash2, Trophy, Users, X } from 'lucide-react'
-import type { GameState, Question, Quiz } from './types/quiz'
+import type { ClassSettings, GameState, Question, Quiz, WheelStudent } from './types/quiz'
 import { storage } from './utils/localStorage'
 import { playCorrectChime, playCorrectVoice, playIncorrectVoice, playQuizCelebration, playWheelSpin } from './utils/sounds'
 import joyHubLogo from './assets/joyhub-logo.png'
@@ -20,6 +20,11 @@ const shuffledOptionIndexes = (length: number) => {
   }
   return indexes
 }
+
+const wheelColors = ['#ff8277', '#ffd86f', '#65c6a3', '#75b9e6', '#a98bdd', '#ffad68']
+const studentIcons = ['', '⭐', '🚀', '🎨', '⚽', '🎵', '🌱', '🧠']
+const makeStudent = (index: number): WheelStudent => ({ id: `student-${index + 1}`, name: `Student ${index + 1}`, color: wheelColors[index % wheelColors.length], icon: '' })
+const resizeStudents = (students: WheelStudent[], count: number) => Array.from({ length: count }, (_, index) => students[index] ?? makeStudent(index))
 
 const focusableSelector = 'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 
@@ -91,7 +96,7 @@ export function App() {
   const [quizzes, setQuizzes] = useState<Quiz[]>(storage.getQuizzes)
   const [draft, setDraft] = useState<QuizDraft | null>(null)
   const [selectedQuizId, setSelectedQuizId] = useState(() => storage.getGame()?.quizId ?? '')
-  const [studentCount, setStudentCount] = useState(storage.getStudentCount)
+  const [classSettings, setClassSettings] = useState<ClassSettings>(storage.getClassSettings)
   const [game, setGame] = useState<GameState | null>(storage.getGame)
   const [errors, setErrors] = useState<string[]>([])
 
@@ -117,10 +122,11 @@ export function App() {
     setView('quizzes')
   }
   const startGame = () => {
-    const count = Math.max(1, Math.min(100, Number(studentCount) || 1))
+    const count = Math.max(1, Math.min(100, Number(classSettings.studentCount) || 1))
     if (!selectedQuizId) { setErrors(['Choose a quiz to continue.']); return }
-    const next: GameState = { quizId: selectedQuizId, studentCount: count, currentStudent: null, completedQuestionIds: [] }
-    setStudentCount(count); storage.saveStudentCount(count); setGame(next); storage.saveGame(next); setErrors([]); setView('game')
+    const settings = { ...classSettings, studentCount: count, students: resizeStudents(classSettings.students, count) }
+    const next: GameState = { ...settings, quizId: selectedQuizId, currentStudentId: null, winCounts: {}, completedQuestionIds: [] }
+    setClassSettings(settings); storage.saveClassSettings(settings); setGame(next); storage.saveGame(next); setErrors([]); setView('game')
   }
   const endGame = () => { storage.clearGame(); setGame(null); setView('dashboard') }
   const updateGame = (next: GameState) => { setGame(next); storage.saveGame(next) }
@@ -129,7 +135,7 @@ export function App() {
     {view === 'dashboard' ? <Dashboard key="dashboard" quizCount={quizzes.length} onCreate={() => editQuiz()} onManage={() => setView('quizzes')} onStart={() => setView('setup')} hasGame={Boolean(game)} onResume={() => setView('game')} /> :
       view === 'quizzes' ? <QuizList key="quizzes" quizzes={quizzes} onBack={goHome} onCreate={() => editQuiz()} onEdit={editQuiz} onDelete={removeQuiz} /> :
       view === 'editor' && draft ? <QuizEditor key="editor" draft={draft} setDraft={setDraft} errors={errors} onBack={() => setView('quizzes')} onSave={validateAndSave} /> :
-      view === 'setup' ? <ClassSetup key="setup" quizzes={quizzes} selected={selectedQuizId} setSelected={setSelectedQuizId} count={studentCount} setCount={setStudentCount} errors={errors} onBack={goHome} onStart={startGame} /> :
+      view === 'setup' ? <ClassSetup key="setup" quizzes={quizzes} selected={selectedQuizId} setSelected={setSelectedQuizId} settings={classSettings} setSettings={setClassSettings} errors={errors} onBack={goHome} onStart={startGame} /> :
       <GameLobby key="game" game={game} quiz={quizzes.find(q => q.id === game?.quizId)} onUpdate={updateGame} onEnd={endGame} onSetup={() => setView('setup')} />}
   </Shell>
 }
@@ -175,10 +181,25 @@ function QuizEditor({ draft, setDraft, errors, onBack, onSave }: { draft: QuizDr
   </div></>
 }
 
-function ClassSetup({ quizzes, selected, setSelected, count, setCount, errors, onBack, onStart }: { quizzes: Quiz[]; selected: string; setSelected: (id: string) => void; count: number; setCount: (n: number) => void; errors: string[]; onBack: () => void; onStart: () => void }) {
-  const safeCount = Math.max(1, Math.min(100, Number(count) || 1)); const students = useMemo(() => Array.from({ length: safeCount }, (_, i) => i + 1), [safeCount])
+function ClassSetup({ quizzes, selected, setSelected, settings, setSettings, errors, onBack, onStart }: { quizzes: Quiz[]; selected: string; setSelected: (id: string) => void; settings: ClassSettings; setSettings: (settings: ClassSettings) => void; errors: string[]; onBack: () => void; onStart: () => void }) {
+  const safeCount = Math.max(1, Math.min(100, Number(settings.studentCount) || 1))
+  const students = useMemo(() => resizeStudents(settings.students, safeCount), [safeCount, settings.students])
+  const updateStudent = (index: number, patch: Partial<WheelStudent>) => setSettings({ ...settings, students: students.map((student, studentIndex) => studentIndex === index ? { ...student, ...patch } : student) })
+  const changeCount = (studentCount: number) => {
+    const count = Math.max(1, Math.min(100, Number(studentCount) || 1))
+    setSettings({ ...settings, studentCount, students: resizeStudents(settings.students, count) })
+  }
   const errorId = errors.length ? 'setup-error' : undefined
-  return <><PageHeader eyebrow="Classroom setup" title="Ready the room" text="Choose an activity and set how many students are joining today." back={onBack} /><div className="grid gap-6 pb-16 lg:grid-cols-[1.1fr_.9fr]"><section className="card"><h2 id="quiz-selection-label" className="text-xl font-black">1. Choose a quiz</h2><div className="mt-5 space-y-3" role="group" aria-labelledby="quiz-selection-label" aria-describedby={errorId}>{quizzes.map(q => <button key={q.id} type="button" aria-pressed={selected === q.id} onClick={() => setSelected(q.id)} className={`selection ${selected === q.id ? 'selected' : ''}`}><span><strong className="block text-lg">{q.title}</strong><span className="text-sm text-ink/55">{q.questions.length} questions</span></span>{selected === q.id && <Check className="text-coral" aria-hidden="true" />}</button>)}</div>{quizzes.length === 0 && <p className="mt-5 text-ink/60">Create a quiz before starting a game.</p>}<label className="label mt-8" htmlFor="student-count">2. Number of students</label><input id="student-count" className="input max-w-40 text-2xl font-black" type="number" min="1" max="100" aria-describedby="student-count-help" value={count} onChange={e => setCount(Number(e.target.value))} /><p id="student-count-help" className="mt-2 text-sm text-ink/50">Choose between 1 and 100 students.</p>{errors.length > 0 && <div id="setup-error" className="error-box mt-6" role="alert">{errors[0]}</div>}<button className="btn-primary mt-8" disabled={!quizzes.length} onClick={onStart}><Play size={19} /> Start game</button></section><section className="card"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-mint"><Users aria-hidden="true" /></span><div><h2 className="font-black">Class preview</h2><p className="text-sm text-ink/55">{safeCount} numbered students</p></div></div><div className="mt-6 grid max-h-[30rem] grid-cols-3 gap-2 overflow-auto pr-2 sm:grid-cols-4 lg:grid-cols-3">{students.map(n => <span key={n} className="rounded-xl bg-cream p-3 text-center text-sm font-bold">Student #{n}</span>)}</div></section></div></>
+  return <><PageHeader eyebrow="Classroom setup" title="Ready the room" text="Choose an activity, customize the wheel, and decide how often a student can win." back={onBack} /><div className="grid gap-6 pb-16 lg:grid-cols-[.9fr_1.1fr]"><section className="card"><h2 id="quiz-selection-label" className="text-xl font-black">1. Choose a quiz</h2><div className="mt-5 space-y-3" role="group" aria-labelledby="quiz-selection-label" aria-describedby={errorId}>{quizzes.map(q => <button key={q.id} type="button" aria-pressed={selected === q.id} onClick={() => setSelected(q.id)} className={`selection ${selected === q.id ? 'selected' : ''}`}><span><strong className="block text-lg">{q.title}</strong><span className="text-sm text-ink/55">{q.questions.length} questions</span></span>{selected === q.id && <Check className="text-coral" aria-hidden="true" />}</button>)}</div>{quizzes.length === 0 && <p className="mt-5 text-ink/60">Create a quiz before starting a game.</p>}
+    <label className="label mt-8" htmlFor="student-count">2. Number of students</label><input id="student-count" className="input max-w-40 text-2xl font-black" type="number" min="1" max="100" aria-describedby="student-count-help" value={settings.studentCount} onChange={e => changeCount(Number(e.target.value))} /><p id="student-count-help" className="mt-2 text-sm text-ink/50">Choose between 1 and 100 students.</p>
+    <fieldset className="mt-8"><legend className="label">3. After a student wins</legend><div className="mt-3 space-y-2">{([['unlimited', 'Keep on wheel', 'Students can win countless times.'], ['remove', 'Remove after winning', 'Each student can win once.'], ['limit', 'Set a win limit', 'Allow two, three, or another limit.']] as const).map(([value, title, description]) => <label key={value} className={`selection cursor-pointer ${settings.winnerPolicy === value ? 'selected' : ''}`}><span><strong className="block">{title}</strong><span className="text-sm text-ink/55">{description}</span></span><input type="radio" name="winner-policy" value={value} checked={settings.winnerPolicy === value} onChange={() => setSettings({ ...settings, winnerPolicy: value })} /></label>)}</div></fieldset>
+    {settings.winnerPolicy === 'limit' && <div className="mt-4"><label className="label" htmlFor="max-wins">Wins allowed per student</label><input id="max-wins" className="input max-w-32" type="number" min="2" max="100" value={settings.maxWins} onChange={e => setSettings({ ...settings, maxWins: Math.max(2, Math.min(100, Number(e.target.value) || 2)) })} /></div>}
+    {errors.length > 0 && <div id="setup-error" className="error-box mt-6" role="alert">{errors[0]}</div>}<button className="btn-primary mt-8" disabled={!quizzes.length} onClick={onStart}><Play size={19} /> Start game</button></section>
+    <section className="card"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-mint"><Users aria-hidden="true" /></span><div><h2 className="font-black">Customize students</h2><p className="text-sm text-ink/55">Names, colors, and icons appear on the wheel.</p></div></div><div className="mt-6 max-h-[46rem] space-y-3 overflow-auto pr-2">{students.map((student, index) => <div key={student.id} className="grid grid-cols-[3.25rem_1fr] gap-3 rounded-2xl border border-[#eee8dd] bg-white p-3 sm:grid-cols-[3.25rem_1fr_5rem]">
+      <input type="color" className="h-12 w-12 cursor-pointer rounded-xl border-0 bg-transparent p-0" value={student.color} onChange={e => updateStudent(index, { color: e.target.value })} aria-label={`Color for ${student.name}`} />
+      <div><label className="sr-only" htmlFor={`student-name-${student.id}`}>Student {index + 1} name</label><input id={`student-name-${student.id}`} className="input !mt-0" value={student.name} maxLength={30} onChange={e => updateStudent(index, { name: e.target.value })} onBlur={() => !student.name.trim() && updateStudent(index, { name: `Student ${index + 1}` })} /></div>
+      <div className="col-start-2 sm:col-start-auto"><label className="sr-only" htmlFor={`student-icon-${student.id}`}>Icon for {student.name}</label><select id={`student-icon-${student.id}`} className="input !mt-0 text-xl" value={student.icon} onChange={e => updateStudent(index, { icon: e.target.value })}>{studentIcons.map(icon => <option key={icon || 'none'} value={icon}>{icon || 'None'}</option>)}</select></div>
+    </div>)}</div></section></div></>
 }
 
 function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState | null; quiz?: Quiz; onUpdate: (game: GameState) => void; onEnd: () => void; onSetup: () => void }) {
@@ -198,19 +219,27 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   }, [selectedAnswer])
 
   if (!game || !quiz) return <section className="py-24 text-center"><h1 className="page-title">No active game</h1><button className="btn-primary mt-8" onClick={onSetup}>Set up a game</button></section>
+  const currentStudent = game.students.find(student => student.id === game.currentStudentId)
+  const eligibleStudents = game.students.filter(student => {
+    const wins = game.winCounts[student.id] ?? 0
+    if (game.winnerPolicy === 'remove') return wins < 1
+    if (game.winnerPolicy === 'limit') return wins < game.maxWins
+    return true
+  })
   const spin = () => {
-    if (isSpinning) return
-    const student = Math.floor(Math.random() * game.studentCount) + 1
-    const slice = 360 / game.studentCount
-    const target = -(student - .5) * slice
+    if (isSpinning || !eligibleStudents.length) return
+    const studentIndex = Math.floor(Math.random() * eligibleStudents.length)
+    const student = eligibleStudents[studentIndex]
+    const slice = 360 / eligibleStudents.length
+    const target = -(studentIndex + .5) * slice
     const delta = 1440 + ((target - (rotation % 360) + 360) % 360)
     setIsSpinning(true)
     setRotation(value => value + delta)
     playWheelSpin()
     window.setTimeout(() => {
-      onUpdate({ ...game, currentStudent: student })
+      onUpdate({ ...game, currentStudentId: student.id, winCounts: { ...game.winCounts, [student.id]: (game.winCounts[student.id] ?? 0) + 1 } })
       setIsSpinning(false)
-    }, 1700)
+    }, shouldReduceMotion ? 150 : 1700)
   }
   const chooseCard = (question: Question) => {
     if (game.completedQuestionIds.includes(question.id)) return
@@ -231,7 +260,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   const isCorrect = activeQuestion && selectedAnswer === activeQuestion.correctAnswer
   const displayedCorrectAnswer = activeQuestion ? optionOrder.indexOf(activeQuestion.correctAnswer) : -1
   const complete = game.completedQuestionIds.length === quiz.questions.length
-  const restart = () => onUpdate({ ...game, currentStudent: null, completedQuestionIds: [] })
+  const restart = () => onUpdate({ ...game, currentStudentId: null, winCounts: {}, completedQuestionIds: [] })
 
   return <><PageHeader eyebrow="Classroom game" title={quiz.title} text={`${game.completedQuestionIds.length} of ${quiz.questions.length} questions completed. Progress is saved automatically.`} />
     <div className="grid gap-6 pb-16 lg:grid-cols-[.72fr_1.28fr]">
@@ -239,15 +268,16 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
         <p className="text-sm font-extrabold uppercase tracking-[.18em] text-ink/45">Current student</p>
         <div className="relative mx-auto mt-7 h-64 w-64 max-w-full">
           <motion.div animate={{ rotate: rotation }} transition={{ duration: shouldReduceMotion ? 0 : 1.7, ease: [0.12, 0.72, 0.18, 1] }} className="h-full w-full drop-shadow-xl">
-            <NumberWheel count={game.studentCount} />
+            <StudentWheel students={eligibleStudents.length ? eligibleStudents : game.students} />
           </motion.div>
           <span className="wheel-pointer" />
         </div>
-        <AnimatePresence mode="wait"><motion.div key={isSpinning ? 'spinning' : game.currentStudent ?? 'none'} initial={{ opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} className="mt-6 min-h-16">
-          {isSpinning ? <p className="text-xl font-black text-coral">Round and round…</p> : game.currentStudent ? <><p className="text-sm font-bold text-ink/45">It’s your turn</p><p className="text-3xl font-black text-coral">Student #{game.currentStudent} 🎉</p></> : <p className="text-xl font-black text-ink/45">Not selected yet</p>}
+        <AnimatePresence mode="wait"><motion.div key={isSpinning ? 'spinning' : game.currentStudentId ?? 'none'} initial={{ opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} className="mt-6 min-h-16">
+          {isSpinning ? <p className="text-xl font-black text-coral">Round and round…</p> : currentStudent ? <><p className="text-sm font-bold text-ink/45">It’s your turn</p><p className="text-3xl font-black" style={{ color: currentStudent.color }}><span aria-hidden="true">{currentStudent.icon && `${currentStudent.icon} `}</span>{currentStudent.name} 🎉</p></> : <p className="text-xl font-black text-ink/45">Not selected yet</p>}
         </motion.div></AnimatePresence>
-        <p className="sr-only" aria-live="polite">{!isSpinning && game.currentStudent ? `Student ${game.currentStudent} selected.` : ''}</p>
-        <button ref={spinButtonRef} className="btn-primary mt-4 w-full justify-center" onClick={spin} disabled={isSpinning}><RotateCw className={isSpinning ? 'animate-spin' : ''} size={20} /> {isSpinning ? 'Spinning…' : 'Spin the wheel'}</button>
+        <p className="sr-only" aria-live="polite">{!isSpinning && currentStudent ? `${currentStudent.name} selected.` : ''}</p>
+        <button ref={spinButtonRef} className="btn-primary mt-4 w-full justify-center" onClick={spin} disabled={isSpinning || !eligibleStudents.length}><RotateCw className={isSpinning ? 'animate-spin' : ''} size={20} /> {isSpinning ? 'Spinning…' : eligibleStudents.length ? 'Spin the wheel' : 'Everyone reached the limit'}</button>
+        {game.winnerPolicy !== 'unlimited' && <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-[#f7f2e9] px-4 py-3 text-left text-sm"><span><strong className="block">{eligibleStudents.length} eligible</strong><span className="text-ink/55">{game.winnerPolicy === 'remove' ? 'Winners leave the wheel' : `${game.maxWins} wins maximum`}</span></span><button className="btn-quiet !px-3 !py-2" onClick={() => onUpdate({ ...game, currentStudentId: null, winCounts: {} })}>Reset wheel</button></div>}
         <div className="mt-6 flex flex-wrap justify-center gap-2"><button className="btn-quiet text-sm" onClick={onSetup}><Pencil size={16} /> Setup</button><button className="btn-quiet text-sm text-red-600" onClick={onEnd}><X size={16} /> End</button></div>
       </section>
       <section className="card">
@@ -258,7 +288,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
     <AnimatePresence>{activeQuestion && <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="question-title" aria-describedby="question-dialog-description" initial={{ opacity: 0, y: 30, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: .97 }} className={`question-modal outline-none ${selectedAnswer !== null ? 'result-modal' : ''}`}>
       <p id="question-dialog-description" className="sr-only">{selectedAnswer === null ? 'Choose one of four answer options. Press Escape to close.' : 'Answer feedback and explanation. Press Escape to close.'}</p>
       <AnimatePresence mode="wait" initial={false}>{selectedAnswer === null ? <motion.div key="question" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-        <div className="flex items-center justify-between"><span className="rounded-full bg-[#fff1ef] px-4 py-2 text-sm font-black text-coral">Student #{game.currentStudent ?? '—'}</span><button ref={initialFocusRef} className="icon-btn" onClick={closeQuestion} aria-label="Close question"><X /></button></div>
+        <div className="flex items-center justify-between"><span className="rounded-full bg-[#fff1ef] px-4 py-2 text-sm font-black text-coral">{currentStudent ? `${currentStudent.icon} ${currentStudent.name}`.trim() : 'No student selected'}</span><button ref={initialFocusRef} className="icon-btn" onClick={closeQuestion} aria-label="Close question"><X /></button></div>
         <h2 id="question-title" className="mt-7 text-2xl font-black leading-tight sm:text-4xl">{activeQuestion.question}</h2>
         <div className="mt-7 grid gap-3 sm:grid-cols-2">{optionOrder.map((originalIndex, displayIndex) => <button onClick={() => answer(originalIndex)} key={originalIndex} className="answer-option"><span>{String.fromCharCode(65 + displayIndex)}</span>{activeQuestion.options[originalIndex]}</button>)}</div>
       </motion.div> : <motion.div key="result" initial={{ opacity: 0, scale: .92 }} animate={{ opacity: 1, scale: 1 }} className={`result-stage ${isCorrect ? 'correct' : 'wrong'}`}>
@@ -277,18 +307,18 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   </>
 }
 
-const wheelColors = ['#ff8277', '#ffd86f', '#65c6a3', '#75b9e6', '#a98bdd', '#ffad68']
 const point = (angle: number, radius: number) => {
   const radians = angle * Math.PI / 180
   return { x: 120 + radius * Math.cos(radians), y: 120 + radius * Math.sin(radians) }
 }
-function NumberWheel({ count }: { count: number }) {
+function StudentWheel({ students }: { students: WheelStudent[] }) {
+  const count = students.length
   const slice = 360 / count
-  const fontSize = Math.max(5, Math.min(15, 170 / count))
-  return <svg viewBox="0 0 240 240" className="number-wheel" role="img" aria-label={`Wheel numbered 1 to ${count}`}>
+  const fontSize = Math.max(4, Math.min(14, 150 / count))
+  return <svg viewBox="0 0 240 240" className="number-wheel" role="img" aria-label={`Wheel with ${count} students: ${students.map(student => student.name).join(', ')}`}>
     <circle cx="120" cy="120" r="116" fill="#fff" />
-    {count === 1 && <><circle cx="120" cy="120" r="108" fill={wheelColors[0]} /><text x="120" y="43" textAnchor="middle" fontSize="18" fontWeight="900" fill="#263238">1</text></>}
-    {count > 1 && Array.from({ length: count }, (_, index) => {
+    {count === 1 && <><circle cx="120" cy="120" r="108" fill={students[0].color} /><text x="120" y="43" textAnchor="middle" fontSize="16" fontWeight="900" fill="#263238">{students[0].icon || students[0].name.slice(0, 12)}</text></>}
+    {count > 1 && students.map((student, index) => {
       const startAngle = -90 + index * slice
       const endAngle = startAngle + slice
       const start = point(startAngle, 108)
@@ -296,8 +326,8 @@ function NumberWheel({ count }: { count: number }) {
       const label = point(startAngle + slice / 2, count > 36 ? 91 : 82)
       const largeArc = slice > 180 ? 1 : 0
       return <g key={index}>
-        <path d={`M 120 120 L ${start.x} ${start.y} A 108 108 0 ${largeArc} 1 ${end.x} ${end.y} Z`} fill={wheelColors[index % wheelColors.length]} stroke="rgba(255,255,255,.7)" strokeWidth={count > 40 ? .35 : 1} />
-        <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" fontSize={fontSize} fontWeight="900" fill="#263238" transform={`rotate(${startAngle + slice / 2 + 90} ${label.x} ${label.y})`}>{index + 1}</text>
+        <path d={`M 120 120 L ${start.x} ${start.y} A 108 108 0 ${largeArc} 1 ${end.x} ${end.y} Z`} fill={student.color} stroke="rgba(255,255,255,.7)" strokeWidth={count > 40 ? .35 : 1} />
+        <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" fontSize={student.icon ? Math.max(fontSize, 8) : fontSize} fontWeight="900" fill="#263238" transform={`rotate(${startAngle + slice / 2 + 90} ${label.x} ${label.y})`}>{student.icon || student.name.slice(0, count > 20 ? 3 : 10)}</text>
       </g>
     })}
     <circle cx="120" cy="120" r="31" fill="#fffaf2" stroke="#fff" strokeWidth="5" />

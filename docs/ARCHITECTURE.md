@@ -11,7 +11,7 @@ All feature components currently live in `src/App.tsx`. They are local implement
 - `Shell` and `PageHeader` provide shared page framing.
 - `Dashboard`, `QuizList`, `QuizEditor`, and `ClassSetup` implement teacher setup flows.
 - `GameLobby` coordinates the student wheel, hidden cards, answer/result modal, persistence, sound, and completion actions.
-- `NumberWheel` and `Confetti` render game visuals.
+- `StudentWheel` and `Confetti` render game visuals.
 
 ## State and data flow
 

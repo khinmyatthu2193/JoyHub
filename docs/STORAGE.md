@@ -7,8 +7,8 @@
 | Key | Stored value | Read | Written | Cleared |
 | --- | --- | --- | --- | --- |
 | `joyhub_quizzes_v1` | `Quiz[]` | App initialization | Successful quiz create/edit; confirmed quiz deletion | Never by the application |
-| `joyhub_settings_v1` | `{ studentCount: number }` | App initialization | Starting a game after clamping to 1–100 | Never by the application |
-| `joyhub_game_state_v1` | `GameState` | View, selection, and game initialization | Start, completed spin, submitted answer, restart | End-game/dashboard action |
+| `joyhub_settings_v1` | `ClassSettings` | App initialization | Starting a game after validating wheel setup | Never by the application |
+| `joyhub_game_state_v1` | `GameState` | View, selection, and game initialization | Start, completed spin, submitted answer, wheel reset, restart | End-game/dashboard action |
 
 If the quiz key is absent or unreadable, `getQuizzes()` returns the built-in starter quiz. If settings are absent or unreadable, the default student count is 30. If game state is absent or unreadable, it returns `null`.
 
@@ -37,7 +37,11 @@ type Quiz = {
 type GameState = {
   quizId: string
   studentCount: number
-  currentStudent: number | null
+  students: WheelStudent[]
+  currentStudentId: string | null
+  winnerPolicy: 'unlimited' | 'remove' | 'limit'
+  maxWins: number
+  winCounts: Record<string, number>
   completedQuestionIds: string[]
 }
 ```
@@ -46,7 +50,7 @@ type GameState = {
 
 Reads catch `localStorage.getItem` and JSON parsing failures and return the key’s fallback. Parsed JSON is asserted as the requested TypeScript type; runtime fields, ranges, IDs, and schema versions are not validated. Writes call `localStorage.setItem` directly and do not catch quota, privacy-mode, or other write failures.
 
-The `_v1` suffix versions key names, but there is no migration layer. A future shape change must either preserve compatibility, validate and migrate old values, or deliberately introduce a new key version.
+The `_v1` suffix versions key names. Settings and games saved before customizable wheels are normalized on read into numbered student entries with the unlimited-repeat policy, preserving active quiz progress.
 
 ## Known risks and recovery limits
 

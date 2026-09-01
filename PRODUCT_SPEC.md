@@ -9,7 +9,7 @@ The MVP lets a teacher create quizzes, configure numbered students, randomly sel
 ## Required flow
 
 1. A teacher creates or selects a quiz.
-2. The teacher configures the number of students.
+2. The teacher configures the students, optionally customizing their names, colors, and icons, plus whether winners stay on the wheel.
 3. JoyHub starts or resumes a classroom game.
 4. The teacher spins to select a numbered student.
 5. The student chooses an unused hidden card.
@@ -40,6 +40,8 @@ type Quiz = {
 
 Persist quizzes, settings, and active game progress under versioned `joyhub_*` local-storage keys.
 
+Wheel settings include the student list and a winner policy: unlimited repeats, removal after one win, or a configurable per-student win limit.
+
 ## Experience principles
 
 - Warm, encouraging, and playful without looking childish.
@@ -59,4 +61,3 @@ Persist quizzes, settings, and active game progress under versioned `joyhub_*` l
 ## Explicitly out of scope
 
 Authentication, backend services, databases, AI generation, student accounts, analytics, leaderboards, and cloud sync.
-

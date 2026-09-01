@@ -8,7 +8,7 @@ This is an audit of the current implementation plus the target for future change
 - Icon-only home, edit, delete, reorder, and close buttons have accessible names.
 - The question overlay uses `role="dialog"`, `aria-modal="true"`, and `aria-labelledby` connected to its heading.
 - Opening the question dialog focuses its close control, traps Tab/Shift+Tab, and supports Escape. Closing returns to the originating card when it remains available, or to Spin after that card becomes completed; feedback moves focus to the next available action.
-- The number wheel is an SVG image with an accessible label. Decorative logo/confetti/emoji treatment is hidden where marked.
+- The student wheel is an SVG image with an accessible label. Decorative logo/confetti/emoji treatment is hidden where marked.
 - Completed cards and unavailable actions are natively disabled. Correct/incorrect feedback uses words and icons as well as color and sound.
 - Shared controls have a consistent high-contrast `focus-visible` outline, and inputs retain their existing focus treatment. New views focus their primary heading.
 - Quiz fields use explicit labels, required/invalid state, and error-summary relationships. Quiz choices expose their pressed state, and setup/validation errors use alert semantics.
@@ -22,7 +22,7 @@ This is an audit of the current implementation plus the target for future change
 - No application keyboard shortcuts exist. Native Tab, Enter, and Space behavior is available through semantic controls.
 - The End game action has no confirmation, while quiz deletion uses the browser’s `confirm()` dialog.
 - There is no user-facing sound/speech preference. Browser API failures are safe, but teachers cannot mute feedback within JoyHub.
-- The wheel still waits 1.7 seconds before committing the result in reduced-motion mode, although its large rotation is removed.
+- Reduced-motion wheel selection uses a short result delay instead of the full 1.7-second animation.
 
 ## Standard for future work
 

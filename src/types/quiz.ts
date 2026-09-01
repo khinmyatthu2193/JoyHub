@@ -15,10 +15,29 @@ export type Quiz = {
   updatedAt: string
 }
 
+export type WheelStudent = {
+  id: string
+  name: string
+  color: string
+  icon: string
+}
+
+export type WinnerPolicy = 'unlimited' | 'remove' | 'limit'
+
+export type ClassSettings = {
+  studentCount: number
+  students: WheelStudent[]
+  winnerPolicy: WinnerPolicy
+  maxWins: number
+}
+
 export type GameState = {
   quizId: string
   studentCount: number
-  currentStudent: number | null
+  students: WheelStudent[]
+  currentStudentId: string | null
+  winnerPolicy: WinnerPolicy
+  maxWins: number
+  winCounts: Record<string, number>
   completedQuestionIds: string[]
 }
-

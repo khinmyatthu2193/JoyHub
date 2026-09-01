@@ -36,19 +36,20 @@ stateDiagram-v2
   Complete --> [*]: Dashboard / end game
 ```
 
-- **Spin:** a student number is chosen uniformly with `Math.floor(Math.random() * studentCount) + 1`. The wheel animation is temporary; after 1.7 seconds the selected student is persisted.
+- **Spin:** one currently eligible student is chosen uniformly. Each wheel entry can have a custom name, color, and icon. The selected student and updated win count are persisted after the animation.
+- **Winner policy:** teachers can keep every student eligible indefinitely, remove a student after one win, or set a per-student win limit. Resetting the wheel clears win counts without resetting question progress.
 - **Card selection:** cards whose IDs are in `completedQuestionIds` are disabled. Opening an unused card stores the question and a shuffled list of its original option indexes only in component state.
 - **Answer:** the first answer click sets temporary feedback state and immediately appends the question ID to persisted completion state. Correctness is checked against the original option index, not its displayed position.
 - **Feedback:** correct and incorrect states include text and an explanation. Correct answers trigger a chime and speech; incorrect answers trigger speech. Answering the final card schedules the celebration sound and displays completion controls.
 - **Next round:** closing feedback clears the active question and selected answer. The current student remains until another spin.
-- **Restart:** resets `currentStudent` and `completedQuestionIds` while retaining the selected quiz and student count.
+- **Restart:** resets the current student, win counts, and completed question IDs while retaining the selected quiz and wheel setup.
 - **End:** clears only active-game storage and returns to the dashboard.
 
-Student numbers may repeat between spins; the implementation prevents reused questions, not repeated students.
+Student repeats follow the configured winner policy. Completed questions remain unavailable independently of the wheel policy.
 
 ## Persistent and temporary state
 
-Persisted `GameState`: quiz ID, student count, current student, and completed question IDs.
+Persisted `GameState`: quiz ID, customized students, winner policy, current student, per-student win counts, and completed question IDs.
 
 Temporary `GameLobby` state: spinning flag, wheel rotation, active question, shuffled option order, and selected answer. Refreshing during a spin, open question, or feedback discards that presentation state and restores the saved game board. An answer is considered complete as soon as it is submitted, even if refresh occurs before the feedback modal is closed.
 
