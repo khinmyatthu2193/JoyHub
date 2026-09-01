@@ -21,6 +21,8 @@ flowchart LR
 
 On startup, the presence of any parsed saved game selects the `game` view. The game renders only when both the saved `GameState` and its referenced quiz exist; otherwise it shows “No active game” with a setup action.
 
+Class setup keeps the required path visible on one screen: choose an activity, set the student count, review the setup summary, and start. Student names, colors, icons, and winner rules remain available in an optional wheel-customization section without changing their persisted shapes.
+
 ## Classroom round
 
 ```mermaid
