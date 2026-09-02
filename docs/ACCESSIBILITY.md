@@ -18,6 +18,7 @@ This is an audit of the current implementation plus the target for future change
 - Web Audio and Speech Synthesis failures are contained so optional feedback cannot prevent spin or answer state updates.
 - Responsive layouts are mobile-first and retain large classroom-facing type and controls.
 - Gameplay uses compact page chrome plus an enlarged wheel and selected-student result for projector viewing; administrative actions remain keyboard-accessible in a native teacher-controls disclosure.
+- Question, answer, correct-answer, explanation, and feedback typography is enlarged for distance viewing without changing dialog focus behavior.
 
 ## Gaps confirmed in source
 

@@ -36,10 +36,10 @@ body { margin: 0; min-width: 320px; min-height: 100vh; }
 .question-board-locked { @apply border-[#eee5d5] bg-white/60; }
 .card-shine { @apply absolute -right-6 -top-8 h-20 w-20 rounded-full bg-white/10; }
 .modal-backdrop { @apply fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-[#172126]/65 p-4 backdrop-blur-sm sm:p-8; }
-.question-modal { @apply my-auto w-full max-w-4xl rounded-[2rem] bg-[#fffaf2] p-6 shadow-2xl sm:p-10; }
-.question-modal.result-modal { @apply max-w-3xl p-4 sm:p-6; }
-.answer-option { @apply flex min-h-16 items-center gap-3 rounded-2xl border-2 border-[#e9e3d8] bg-white p-4 text-left text-lg font-bold transition hover:-translate-y-0.5 hover:border-[#ff8277] disabled:translate-y-0 disabled:cursor-default; }
-.answer-option > span { @apply grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#f3eee4] font-black; }
+.question-modal { @apply my-auto w-full max-w-5xl rounded-[2rem] bg-[#fffaf2] p-6 shadow-2xl sm:p-10; }
+.question-modal.result-modal { @apply max-w-4xl p-4 sm:p-7; }
+.answer-option { @apply flex min-h-20 items-center gap-4 rounded-2xl border-2 border-[#e9e3d8] bg-white p-5 text-left text-xl font-bold leading-7 transition hover:-translate-y-0.5 hover:border-[#ff8277] disabled:translate-y-0 disabled:cursor-default sm:text-2xl; }
+.answer-option > span { @apply grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#f3eee4] text-lg font-black; }
 .answer-option.correct { @apply border-[#43a77d] bg-[#e9f8f1] text-[#246d51]; }
 .answer-option.correct > span { @apply bg-[#43a77d] text-white; }
 .answer-option.wrong { @apply border-[#e86a63] bg-[#fff0ef] text-[#a43e39]; }
@@ -50,7 +50,7 @@ body { margin: 0; min-width: 320px; min-height: 100vh; }
 .result-icon { @apply relative mx-auto grid h-16 w-16 place-items-center rounded-full; }
 .result-icon.correct { @apply bg-[#43a77d] text-white shadow-xl shadow-[#43a77d]/20; }
 .result-icon.wrong { @apply bg-[#e86a63] text-white shadow-xl shadow-[#e86a63]/20; }
-.result-answer { @apply relative mx-auto mt-5 flex max-w-xl items-center justify-center gap-3 rounded-2xl border-2 border-[#f0c87a] bg-white/75 p-3 text-lg; }
+.result-answer { @apply relative mx-auto mt-5 flex max-w-2xl items-center justify-center gap-3 rounded-2xl border-2 border-[#f0c87a] bg-white/75 p-4 text-xl; }
 .result-answer span { @apply grid h-10 w-10 place-items-center rounded-xl bg-[#ffd86f] font-black; }
 .completion-badge { @apply relative mx-auto mb-4 flex w-fit items-center gap-2 rounded-full bg-[#ffd86f] px-4 py-2 text-sm font-black text-ink shadow-md; }
 .confetti { @apply pointer-events-none absolute inset-0 overflow-hidden; }
