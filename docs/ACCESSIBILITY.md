@@ -17,6 +17,7 @@ This is an audit of the current implementation plus the target for future change
 - Framer Motion honors the user’s reduced-motion preference and confetti is omitted; CSS also shortens animation and transition durations.
 - Web Audio and Speech Synthesis failures are contained so optional feedback cannot prevent spin or answer state updates.
 - Responsive layouts are mobile-first and retain large classroom-facing type and controls.
+- Gameplay uses compact page chrome plus an enlarged wheel and selected-student result for projector viewing; administrative actions remain keyboard-accessible in a native teacher-controls disclosure.
 
 ## Gaps confirmed in source
 

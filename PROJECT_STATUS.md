@@ -78,6 +78,7 @@ Acceptance checks:
 - [x] Teacher-first home screen with dominant classroom launch and saved progress
 - [x] Guided classroom setup with a fast path and optional wheel customization
 - [x] Classroom activity library with direct launch actions and guided empty state
+- [x] Projector-focused gameplay stage with compact chrome and prominent student action
 - [ ] Empty, error, and confirmation states
 - [~] Accessibility and keyboard pass
 - [ ] Final responsive QA
@@ -109,6 +110,7 @@ Acceptance checks:
 | 2026-09-01 | Make classroom launch the home-screen priority | Reframes JoyHub around starting or continuing today’s activity while keeping quiz creation and the library available as secondary preparation actions. |
 | 2026-09-01 | Keep advanced wheel options outside the setup fast path | Lets teachers start with only an activity and class size while preserving names, visual styles, and winner rules in an optional customization section. |
 | 2026-09-02 | Treat the quiz library as an activity picker | Makes Start Activity dominant on each quiz and gives an empty library a clear explanation and direct creation action. |
+| 2026-09-02 | Prioritize the gameplay stage on projectors | Compacts game chrome, enlarges the wheel and selected student, and places setup and exit actions behind quieter teacher controls without adding a separate mode. |
 
 ## Update template
 

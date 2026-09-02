@@ -73,11 +73,11 @@ function useDialogFocus(open: boolean, onClose: () => void, fallbackFocusRef: Re
   return { dialogRef, initialFocusRef }
 }
 
-function Shell({ children, onHome }: { children: React.ReactNode; onHome: () => void }) {
-  return <MotionConfig reducedMotion="user"><main className="min-h-screen overflow-hidden px-5 py-7 sm:px-10 lg:px-16">
+function Shell({ children, onHome, compact = false }: { children: React.ReactNode; onHome: () => void; compact?: boolean }) {
+  return <MotionConfig reducedMotion="user"><main className={`min-h-screen overflow-hidden px-5 sm:px-10 lg:px-16 ${compact ? 'py-4 sm:py-5' : 'py-7'}`}>
     <div className="blob blob-one" /><div className="blob blob-two" />
     <button onClick={onHome} className="brand relative mx-auto flex max-w-6xl items-center text-2xl font-black text-ink" aria-label="JoyHub home">
-      <img src={joyHubLogo} alt="" className="brand-logo" /><span>Joy<span className="text-coral">Hub</span></span>
+      <img src={joyHubLogo} alt="" className={compact ? 'h-12 w-12 shrink-0 object-contain drop-shadow-md' : 'brand-logo'} /><span>Joy<span className="text-coral">Hub</span></span>
     </button>
     <AnimatePresence mode="wait"><motion.div key={(children as React.ReactElement).key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="relative mx-auto max-w-6xl">{children}</motion.div></AnimatePresence>
   </main></MotionConfig>
@@ -132,7 +132,7 @@ export function App() {
   const endGame = () => { storage.clearGame(); setGame(null); setView('dashboard') }
   const updateGame = (next: GameState) => { setGame(next); storage.saveGame(next) }
 
-  return <Shell onHome={goHome}>
+  return <Shell onHome={goHome} compact={view === 'game'}>
     {view === 'dashboard' ? <Dashboard key="dashboard" quizCount={quizzes.length} game={game} activeQuiz={quizzes.find(q => q.id === game?.quizId)} onCreate={() => editQuiz()} onManage={() => setView('quizzes')} onStart={() => setView('setup')} onResume={() => setView('game')} /> :
       view === 'quizzes' ? <QuizList key="quizzes" quizzes={quizzes} onBack={goHome} onCreate={() => editQuiz()} onStart={prepareQuiz} onEdit={editQuiz} onDelete={removeQuiz} /> :
       view === 'editor' && draft ? <QuizEditor key="editor" draft={draft} setDraft={setDraft} errors={errors} onBack={() => setView('quizzes')} onSave={validateAndSave} /> :
@@ -233,6 +233,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   const spinButtonRef = useRef<HTMLButtonElement>(null)
   const { dialogRef, initialFocusRef } = useDialogFocus(Boolean(activeQuestion), closeQuestion, spinButtonRef)
   const resultActionRef = useRef<HTMLButtonElement>(null)
+  const headingRef = useHeadingFocus()
 
   useEffect(() => {
     if (selectedAnswer !== null) resultActionRef.current?.focus()
@@ -283,28 +284,28 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
   const complete = game.completedQuestionIds.length === quiz.questions.length
   const restart = () => onUpdate({ ...game, currentStudentId: null, winCounts: {}, completedQuestionIds: [] })
 
-  return <><PageHeader eyebrow="Classroom game" title={quiz.title} text={`${game.completedQuestionIds.length} of ${quiz.questions.length} questions completed. Progress is saved automatically.`} />
-    <div className="grid gap-6 pb-16 lg:grid-cols-[.72fr_1.28fr]">
+  return <><header className="flex flex-wrap items-end justify-between gap-4 pb-6 pt-5 sm:pb-8 sm:pt-6"><div><p className="eyebrow !mb-2">Classroom game</p><h1 ref={headingRef} tabIndex={-1} className="text-3xl font-black tracking-tight text-ink outline-none sm:text-4xl lg:text-5xl">{quiz.title}</h1></div><div className="rounded-2xl bg-white/75 px-5 py-3 text-right shadow-soft"><strong className="block text-lg font-black">{game.completedQuestionIds.length} of {quiz.questions.length}</strong><span className="text-sm font-bold text-ink/55">questions complete · saved</span></div></header>
+    <div className="grid gap-6 pb-12 lg:grid-cols-[.9fr_1.1fr] xl:grid-cols-[.95fr_1.05fr]">
       <section className="card text-center lg:sticky lg:top-6 lg:self-start">
-        <p className="text-sm font-extrabold uppercase tracking-[.18em] text-ink/45">Current student</p>
-        <div className="relative mx-auto mt-7 h-64 w-64 max-w-full">
+        <p className="text-base font-extrabold uppercase tracking-[.18em] text-ink/55">Current student</p>
+        <div className="relative mx-auto mt-5 h-72 w-72 max-w-full xl:h-80 xl:w-80">
           <motion.div animate={{ rotate: rotation }} transition={{ duration: shouldReduceMotion ? 0 : 1.7, ease: [0.12, 0.72, 0.18, 1] }} className="h-full w-full drop-shadow-xl">
             <StudentWheel students={eligibleStudents.length ? eligibleStudents : game.students} />
           </motion.div>
           <span className="wheel-pointer" />
         </div>
-        <AnimatePresence mode="wait"><motion.div key={isSpinning ? 'spinning' : game.currentStudentId ?? 'none'} initial={{ opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} className="mt-6 min-h-20">
-          {isSpinning ? <p className="text-xl font-black text-coral">Round and round…</p> : currentStudent ? <><p className="text-sm font-extrabold uppercase tracking-[.16em] text-ink/50">Student selected</p><p className="mt-1 text-4xl font-black sm:text-5xl" style={{ color: currentStudent.color }}><span aria-hidden="true">{currentStudent.icon && `${currentStudent.icon} `}</span>{currentStudent.name}</p></> : <><p className="text-xl font-black text-ink/55">Ready for the next round?</p><p className="mt-1 text-sm font-bold text-ink/45">Spin to choose a student.</p></>}
+        <AnimatePresence mode="wait"><motion.div key={isSpinning ? 'spinning' : game.currentStudentId ?? 'none'} initial={{ opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} className="mt-5 min-h-24">
+          {isSpinning ? <p className="text-2xl font-black text-coral">Round and round…</p> : currentStudent ? <><p className="text-sm font-extrabold uppercase tracking-[.16em] text-ink/55">Student selected</p><p className="mt-1 break-words text-5xl font-black leading-none text-ink underline decoration-8 underline-offset-8 sm:text-6xl" style={{ textDecorationColor: currentStudent.color }}><span aria-hidden="true">{currentStudent.icon && `${currentStudent.icon} `}</span>{currentStudent.name}</p></> : <><p className="text-2xl font-black text-ink">Ready for the next round?</p><p className="mt-2 text-base font-bold text-ink/55">Spin to choose a student.</p></>}
         </motion.div></AnimatePresence>
         <p className="sr-only" aria-live="polite">{!isSpinning && currentStudent ? `${currentStudent.name} selected.` : ''}</p>
-        <button ref={spinButtonRef} className="btn-primary mt-4 w-full justify-center" onClick={spin} disabled={isSpinning || Boolean(currentStudent) || !eligibleStudents.length}><RotateCw className={isSpinning ? 'animate-spin' : ''} size={20} /> {isSpinning ? 'Spinning…' : currentStudent ? 'Choose a card to continue' : eligibleStudents.length ? game.completedQuestionIds.length ? 'Spin for the next student' : 'Spin the wheel' : 'Everyone reached the limit'}</button>
+        <button ref={spinButtonRef} className="btn-primary mt-5 w-full justify-center !py-4 text-lg" onClick={spin} disabled={isSpinning || Boolean(currentStudent) || !eligibleStudents.length}><RotateCw className={isSpinning ? 'animate-spin' : ''} size={22} /> {isSpinning ? 'Spinning…' : currentStudent ? 'Choose a card to continue' : eligibleStudents.length ? game.completedQuestionIds.length ? 'Spin for the next student' : 'Spin the wheel' : 'Everyone reached the limit'}</button>
         {game.winnerPolicy !== 'unlimited' && <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-[#f7f2e9] px-4 py-3 text-left text-sm"><span><strong className="block">{eligibleStudents.length} eligible</strong><span className="text-ink/55">{game.winnerPolicy === 'remove' ? 'Winners leave the wheel' : `${game.maxWins} wins maximum`}</span></span><button className="btn-quiet !px-3 !py-2" disabled={Boolean(currentStudent)} onClick={() => onUpdate({ ...game, currentStudentId: null, winCounts: {} })}>Reset wheel</button></div>}
-        <div className="mt-6 flex flex-wrap justify-center gap-2"><button className="btn-quiet text-sm" onClick={onSetup}><Pencil size={16} /> Setup</button><button className="btn-quiet text-sm text-red-600" onClick={onEnd}><X size={16} /> End</button></div>
+        <details className="mt-5 rounded-2xl border border-ink/10 bg-white/45 text-left"><summary className="cursor-pointer px-4 py-3 text-center text-sm font-extrabold text-ink/50">Teacher controls</summary><div className="flex flex-wrap justify-center gap-2 border-t border-ink/10 p-3"><button className="btn-quiet text-sm" onClick={onSetup}><Pencil size={16} /> Setup</button><button className="btn-quiet text-sm text-red-600" onClick={onEnd}><X size={16} /> End game</button></div></details>
       </section>
       <section className={`card transition ${currentStudent ? '' : 'question-board-locked'}`} aria-labelledby="question-board-title" aria-describedby={!currentStudent ? 'question-board-instruction' : undefined}>
-        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow !mb-2">Question board</p><h2 id="question-board-title" className="text-3xl font-black">{currentStudent ? `${currentStudent.name}, choose a question card.` : 'Spin the wheel to choose a student.'}</h2></div><span className="rounded-full bg-[#f7f2e9] px-4 py-2 text-sm font-bold">{quiz.questions.length - game.completedQuestionIds.length} remaining</span></div>
-        {!currentStudent && <div id="question-board-instruction" className="mt-6 rounded-2xl border-2 border-dashed border-[#e6dcca] bg-[#fffaf2] p-5 text-center"><RotateCw className="mx-auto text-coral" aria-hidden="true" /><p className="mt-2 text-lg font-black">Spin the wheel to choose a student.</p><p className="mt-1 text-sm font-bold text-ink/55">Question cards unlock after the wheel stops.</p></div>}
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{quiz.questions.map((question, index) => { const used = game.completedQuestionIds.includes(question.id); const locked = !currentStudent || isSpinning; return <motion.button layout key={question.id} whileHover={used || locked ? undefined : { y: -5, rotate: -1 }} whileTap={used || locked ? undefined : { scale: .96 }} disabled={used || locked} onClick={() => chooseCard(question)} className={`question-card ${used ? 'used' : locked ? 'locked' : ''}`}><span className="card-shine" />{used ? <><Check size={30} /><span className="text-sm">Completed</span></> : <><CircleHelp size={30} /><span className="text-3xl">{index + 1}</span></>}</motion.button> })}</div>
+        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow !mb-2">Question board</p><h2 id="question-board-title" className="text-3xl font-black leading-tight sm:text-4xl">{currentStudent ? `${currentStudent.name}, choose a question card.` : 'Spin the wheel to choose a student.'}</h2></div><span className="rounded-full bg-[#f7f2e9] px-4 py-2 text-base font-black">{quiz.questions.length - game.completedQuestionIds.length} remaining</span></div>
+        {!currentStudent && <div id="question-board-instruction" className="mt-6 rounded-2xl border-2 border-dashed border-[#e6dcca] bg-[#fffaf2] p-6 text-center"><RotateCw className="mx-auto text-coral" size={28} aria-hidden="true" /><p className="mt-3 text-2xl font-black">Spin the wheel to choose a student.</p><p className="mt-2 text-base font-bold text-ink/60">Question cards unlock after the wheel stops.</p></div>}
+        <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{quiz.questions.map((question, index) => { const used = game.completedQuestionIds.includes(question.id); const locked = !currentStudent || isSpinning; return <motion.button layout key={question.id} whileHover={used || locked ? undefined : { y: -5, rotate: -1 }} whileTap={used || locked ? undefined : { scale: .96 }} disabled={used || locked} onClick={() => chooseCard(question)} className={`question-card ${used ? 'used' : locked ? 'locked' : ''}`}><span className="card-shine" />{used ? <><Check size={34} /><span className="text-base">Completed</span></> : <><CircleHelp size={34} /><span className="text-4xl sm:text-5xl">{index + 1}</span></>}</motion.button> })}</div>
       </section>
     </div>
     <AnimatePresence>{activeQuestion && <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><motion.section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="question-title" aria-describedby="question-dialog-description" initial={{ opacity: 0, y: 30, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: .97 }} className={`question-modal outline-none ${selectedAnswer !== null ? 'result-modal' : ''}`}>
