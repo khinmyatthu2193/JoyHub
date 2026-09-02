@@ -77,6 +77,7 @@ Acceptance checks:
 - [x] Page transitions and reduced-motion support
 - [x] Teacher-first home screen with dominant classroom launch and saved progress
 - [x] Guided classroom setup with a fast path and optional wheel customization
+- [x] Classroom activity library with direct launch actions and guided empty state
 - [ ] Empty, error, and confirmation states
 - [~] Accessibility and keyboard pass
 - [ ] Final responsive QA
@@ -107,6 +108,7 @@ Acceptance checks:
 | 2026-09-01 | Gate classroom actions by round stage | Keeps the teacher-led sequence clear by requiring a spin before card selection and a new spin after feedback, using native disabled controls and visible instructions. |
 | 2026-09-01 | Make classroom launch the home-screen priority | Reframes JoyHub around starting or continuing today’s activity while keeping quiz creation and the library available as secondary preparation actions. |
 | 2026-09-01 | Keep advanced wheel options outside the setup fast path | Lets teachers start with only an activity and class size while preserving names, visual styles, and winner rules in an optional customization section. |
+| 2026-09-02 | Treat the quiz library as an activity picker | Makes Start Activity dominant on each quiz and gives an empty library a clear explanation and direct creation action. |
 
 ## Update template
 
