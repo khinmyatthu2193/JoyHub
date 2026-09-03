@@ -392,7 +392,8 @@ const point = (angle: number, radius: number) => {
 function StudentWheel({ students }: { students: WheelStudent[] }) {
   const count = students.length
   const slice = 360 / count
-  const fontSize = Math.max(4, Math.min(14, 150 / count))
+  const fontSize = Math.max(5, Math.min(12, 120 / count))
+  const maxLabelLength = count > 20 ? 3 : count > 12 ? 6 : 10
   return <svg viewBox="0 0 240 240" className="number-wheel" role="img" aria-label={`Wheel with ${count} students: ${students.map(student => student.name).join(', ')}`}>
     <circle cx="120" cy="120" r="116" fill="#fff" />
     {count === 1 && <><circle cx="120" cy="120" r="108" fill={students[0].color} /><text x="120" y="43" textAnchor="middle" fontSize="16" fontWeight="900" fill="#263238">{students[0].icon || students[0].name.slice(0, 12)}</text></>}
@@ -401,11 +402,11 @@ function StudentWheel({ students }: { students: WheelStudent[] }) {
       const endAngle = startAngle + slice
       const start = point(startAngle, 108)
       const end = point(endAngle, 108)
-      const label = point(startAngle + slice / 2, count > 36 ? 91 : 82)
+      const labelAngle = startAngle + slice / 2
       const largeArc = slice > 180 ? 1 : 0
       return <g key={index}>
         <path d={`M 120 120 L ${start.x} ${start.y} A 108 108 0 ${largeArc} 1 ${end.x} ${end.y} Z`} fill={student.color} stroke="rgba(255,255,255,.7)" strokeWidth={count > 40 ? .35 : 1} />
-        <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" fontSize={student.icon ? Math.max(fontSize, 8) : fontSize} fontWeight="900" fill="#263238" transform={`rotate(${startAngle + slice / 2 + 90} ${label.x} ${label.y})`}>{student.icon || student.name.slice(0, count > 20 ? 3 : 10)}</text>
+        <text x="101" y="120" textAnchor="end" dominantBaseline="middle" fontSize={student.icon ? Math.max(fontSize, 8) : fontSize} fontWeight="900" fill="#263238" transform={`rotate(${labelAngle} 120 120)`}>{student.icon || student.name.slice(0, maxLabelLength)}</text>
       </g>
     })}
     <circle cx="120" cy="120" r="31" fill="#fffaf2" stroke="#fff" strokeWidth="5" />

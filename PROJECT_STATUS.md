@@ -82,7 +82,8 @@ Acceptance checks:
 - [x] Classroom-scale question, answer, and feedback presentation
 - [x] Empty, error, and confirmation states
 - [x] Accessibility and keyboard pass
-- [x] Place classroom setup navigation at the top of the game screen
+- [x] Place the standard Back button at the top of the game screen
+- [x] Keep student labels readable within wheel slices
 - [ ] Final responsive QA
 
 Acceptance checks:
