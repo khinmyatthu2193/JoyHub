@@ -15,10 +15,11 @@ body { margin: 0; min-width: 320px; min-height: 100vh; }
 .page-title { @apply text-4xl font-black tracking-tight text-ink sm:text-6xl; }
 .label { @apply block font-extrabold text-ink; }
 .input { @apply mt-2 block w-full rounded-2xl border-2 border-[#eee8dd] bg-white px-4 py-3 font-normal text-ink outline-none transition focus:border-[#ff8277] focus:ring-4 focus:ring-[#ff8277]/10; }
-.btn-primary, .btn-secondary, .btn-quiet { @apply inline-flex items-center gap-2 rounded-2xl px-5 py-3 font-extrabold transition disabled:cursor-not-allowed disabled:opacity-40; }
+.btn-primary, .btn-secondary, .btn-quiet, .btn-danger { @apply inline-flex items-center gap-2 rounded-2xl px-5 py-3 font-extrabold transition disabled:cursor-not-allowed disabled:opacity-40; }
 .btn-primary { @apply bg-[#ff8277] text-white shadow-lg shadow-[#ff8277]/20 hover:-translate-y-0.5 hover:bg-[#ed675c]; }
 .btn-secondary { @apply bg-[#263238] text-white hover:-translate-y-0.5; }
 .btn-quiet { @apply bg-white/70 text-ink hover:bg-white; }
+.btn-danger { @apply bg-red-600 text-white hover:bg-red-700; }
 .icon-btn { @apply grid h-10 w-10 place-items-center rounded-xl bg-[#f7f2e9] text-ink transition hover:bg-[#eee5d5] disabled:opacity-30; }
 .icon-btn.danger { @apply text-red-600; }
 .error-box { @apply rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700; }

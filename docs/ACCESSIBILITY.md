@@ -7,6 +7,7 @@ This is an audit of the current implementation plus the target for future change
 - Interactive actions use native `button`, `input`, `textarea`, and radio controls; form controls are programmatically associated with visible labels.
 - Icon-only home, edit, delete, reorder, and close buttons have accessible names.
 - The question overlay uses `role="dialog"`, `aria-modal="true"`, and `aria-labelledby` connected to its heading.
+- Destructive actions use an in-application `alertdialog` with an explicit consequence, safe cancel label, destructive action label, trapped focus, Escape dismissal, and focus restoration.
 - Opening the question dialog focuses its close control, traps Tab/Shift+Tab, and supports Escape. Closing returns to the originating card when it remains available, or to Spin after that card becomes completed; feedback moves focus to the next available action.
 - The student wheel is an SVG image with an accessible label. Decorative logo/confetti/emoji treatment is hidden where marked.
 - Question cards use native disabled states until a student is selected, with visible instructions explaining how to unlock the board. A selected student prevents another spin until a card is answered.
@@ -16,6 +17,7 @@ This is an audit of the current implementation plus the target for future change
 - Final student selection and answer feedback use restrained live announcements rather than announcing animation frames.
 - Framer Motion honors the user’s reduced-motion preference and confetti is omitted; CSS also shortens animation and transition durations.
 - Web Audio and Speech Synthesis failures are contained so optional feedback cannot prevent spin or answer state updates.
+- Detectable storage and browser-feedback failures use teacher-facing alert messages with a keyboard-accessible dismiss action; messages do not expose storage keys or browser exceptions.
 - Responsive layouts are mobile-first and retain large classroom-facing type and controls.
 - Gameplay uses compact page chrome plus an enlarged wheel and selected-student result for projector viewing; administrative actions remain keyboard-accessible in a native teacher-controls disclosure.
 - Question, answer, correct-answer, explanation, and feedback typography is enlarged for distance viewing without changing dialog focus behavior.
@@ -23,8 +25,8 @@ This is an audit of the current implementation plus the target for future change
 ## Gaps confirmed in source
 
 - No application keyboard shortcuts exist. Native Tab, Enter, and Space behavior is available through semantic controls.
-- The End game action has no confirmation, while quiz deletion uses the browser’s `confirm()` dialog.
 - There is no user-facing sound/speech preference. Browser API failures are safe, but teachers cannot mute feedback within JoyHub.
+- Speech Synthesis can fail asynchronously after the browser accepts an utterance; those failures are not consistently detectable across browsers.
 - Reduced-motion wheel selection uses a short result delay instead of the full 1.7-second animation.
 
 ## Standard for future work

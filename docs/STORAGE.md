@@ -8,7 +8,7 @@
 | --- | --- | --- | --- | --- |
 | `joyhub_quizzes_v1` | `Quiz[]` | App initialization | Successful quiz create/edit; confirmed quiz deletion | Never by the application |
 | `joyhub_settings_v1` | `ClassSettings` | App initialization | Starting a game after validating wheel setup | Never by the application |
-| `joyhub_game_state_v1` | `GameState` | View, selection, and game initialization | Start, completed spin, submitted answer, wheel reset, restart | End-game/dashboard action |
+| `joyhub_game_state_v1` | `GameState` | Application initialization | Start, completed spin, submitted answer, wheel reset, restart | Confirmed end game, recovery from a missing quiz, deletion of the active quiz |
 
 If the quiz key is absent or unreadable, `getQuizzes()` returns the built-in starter quiz. If settings are absent or unreadable, the default student count is 30. If game state is absent or unreadable, it returns `null`.
 
@@ -48,18 +48,19 @@ type GameState = {
 
 ## Current safety behavior
 
-Reads catch `localStorage.getItem` and JSON parsing failures and return the key’s fallback. Parsed JSON is asserted as the requested TypeScript type; runtime fields, ranges, IDs, and schema versions are not validated. Writes call `localStorage.setItem` directly and do not catch quota, privacy-mode, or other write failures.
+Reads catch `localStorage.getItem` and JSON parsing failures and return the key’s fallback. Quiz records and questions receive basic runtime shape validation; invalid records are omitted. Settings and game state are normalized to safe ranges and valid student references, and an invalid game without a quiz ID is discarded. The application shows a teacher-facing recovery notice when malformed or invalid saved data is detected.
+
+Writes and clears catch detectable `localStorage` failures and return a result to the application. The in-memory action still completes, while JoyHub warns that it may be lost after refresh.
 
 The `_v1` suffix versions key names. Settings and games saved before customizable wheels are normalized on read into numbered student entries with the unlimited-repeat policy, preserving active quiz progress.
 
 ## Known risks and recovery limits
 
-- A saved game may reference a deleted or missing quiz. The game view then shows “No active game,” but the stale game record remains until the user starts or ends a game.
-- Structurally valid JSON with invalid fields is accepted. An invalid stored student count, answer index, or question ID can reach application logic.
-- Quiz deletion does not check whether the quiz belongs to the active game.
-- Completed question IDs are not reconciled with edited/deleted questions.
+- A saved game that references a missing quiz opens a recovery state. Choosing another activity clears the stale session; deleting the active quiz also clears its session after confirmation.
+- Validation is intentionally shallow and does not migrate future schemas. Unknown extra fields are ignored, and invalid quiz records are omitted rather than repaired.
+- Completed question IDs remain stored as recorded, but progress and completion counts only use IDs that still exist in the current quiz.
 - Browser/site-data clearing permanently removes user-created quizzes and progress. There is no import/export or backup.
 - When a malformed quiz payload falls back to the starter quiz, the malformed stored value is not repaired automatically.
-- Storage write failures are not surfaced to the teacher, so “saved automatically” can be inaccurate in those cases.
+- A write failure can leave the current in-memory view ahead of persisted data. JoyHub warns the teacher, but cannot recover storage capacity or browser permissions automatically.
 
-These are audit findings, not implemented behavior. Treat validation, migrations, backup/export, and write-error UI as future improvements unless a task explicitly requests them.
+Storage key names and persisted shapes remain version 1. There is still no migration framework, backup/export, or cross-device recovery.

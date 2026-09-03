@@ -19,7 +19,7 @@ flowchart LR
   G -->|End or completed dashboard| D
 ```
 
-On startup, the presence of any parsed saved game selects the `game` view. The game renders only when both the saved `GameState` and its referenced quiz exist; otherwise it shows “No active game” with a setup action.
+On startup, a valid saved game selects the `game` view. If its referenced quiz is missing, the game shows a teacher-facing recovery state that can clear the stale session and return to setup. With no session, the same view provides a direct setup action.
 
 Class setup keeps the required path visible on one screen: choose an activity, set the student count, review the setup summary, and start. Student names, colors, icons, and winner rules remain available in an optional wheel-customization section without changing their persisted shapes.
 
@@ -39,13 +39,13 @@ stateDiagram-v2
 ```
 
 - **Spin:** one currently eligible student is chosen uniformly. Each wheel entry can have a custom name, color, and icon. The selected student and updated win count are persisted after the animation.
-- **Winner policy:** teachers can keep every student eligible indefinitely, remove a student after one win, or set a per-student win limit. Resetting the wheel clears win counts without resetting question progress.
+- **Winner policy:** teachers can keep every student eligible indefinitely, remove a student after one win, or set a per-student win limit. If no student remains eligible, the game explains what happened and offers a confirmed wheel reset. Resetting clears win counts without resetting question progress.
 - **Card selection:** the question board stays visibly inactive until the wheel selects a student. The selected student must choose one unused card before another spin is allowed. Completed cards remain disabled. Opening a card stores the question, selected student snapshot, and shuffled list of original option indexes only in component state.
 - **Answer:** the first answer click sets temporary feedback state, appends the question ID to persisted completion state, and clears the persisted current student so the next round must begin with a spin. Correctness is checked against the original option index, not its displayed position.
 - **Feedback:** correct and incorrect states include text and an explanation. Correct answers trigger a chime and speech; incorrect answers trigger speech. Answering the final card schedules the celebration sound and displays completion controls.
 - **Next round:** the feedback dialog’s primary action is “Spin for the next student.” Closing feedback clears the temporary question, student snapshot, and selected answer, then returns focus to Spin.
-- **Restart:** resets the current student, win counts, and completed question IDs while retaining the selected quiz and wheel setup.
-- **End:** clears only active-game storage and returns to the dashboard.
+- **Restart:** after confirmation, resets the current student, win counts, and completed question IDs while retaining the selected quiz and wheel setup.
+- **End:** after confirmation, clears only active-game storage and returns to the dashboard.
 
 Student repeats follow the configured winner policy. Completed questions remain unavailable independently of the wheel policy.
 

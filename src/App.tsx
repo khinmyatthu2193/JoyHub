@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'framer-motion'
-import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, CircleHelp, Pencil, Play, Plus, RotateCcw, RotateCw, Trash2, Trophy, Users, X } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, BookOpen, Check, CircleHelp, Pencil, Play, Plus, RotateCcw, RotateCw, Trash2, Trophy, Users, X } from 'lucide-react'
 import type { ClassSettings, GameState, Question, Quiz, WheelStudent } from './types/quiz'
 import { storage } from './utils/localStorage'
 import { playCorrectChime, playCorrectVoice, playIncorrectVoice, playQuizCelebration, playWheelSpin } from './utils/sounds'
@@ -8,6 +8,7 @@ import joyHubLogo from './assets/joyhub-logo.png'
 
 type View = 'dashboard' | 'quizzes' | 'editor' | 'setup' | 'game'
 type QuizDraft = Pick<Quiz, 'id' | 'title' | 'description' | 'questions' | 'createdAt'>
+type Confirmation = { title: string; message: string; confirmLabel: string; cancelLabel?: string; onConfirm: () => void }
 
 const id = () => crypto.randomUUID()
 const emptyQuestion = (): Question => ({ id: id(), question: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' })
@@ -25,6 +26,7 @@ const wheelColors = ['#ff8277', '#ffd86f', '#65c6a3', '#75b9e6', '#a98bdd', '#ff
 const studentIcons = ['', '⭐', '🚀', '🎨', '⚽', '🎵', '🌱', '🧠']
 const makeStudent = (index: number): WheelStudent => ({ id: `student-${index + 1}`, name: `Student ${index + 1}`, color: wheelColors[index % wheelColors.length], icon: '' })
 const resizeStudents = (students: WheelStudent[], count: number) => Array.from({ length: count }, (_, index) => students[index] ?? makeStudent(index))
+const isQuizUsable = (quiz?: Quiz) => Boolean(quiz?.questions.length)
 
 const focusableSelector = 'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 
@@ -73,12 +75,19 @@ function useDialogFocus(open: boolean, onClose: () => void, fallbackFocusRef: Re
   return { dialogRef, initialFocusRef }
 }
 
-function Shell({ children, onHome, compact = false }: { children: React.ReactNode; onHome: () => void; compact?: boolean }) {
+function ConfirmDialog({ confirmation, onCancel }: { confirmation: Confirmation; onCancel: () => void }) {
+  const fallbackRef = useRef<HTMLElement>(null)
+  const { dialogRef, initialFocusRef } = useDialogFocus(true, onCancel, fallbackRef)
+  return <div className="modal-backdrop"><section ref={dialogRef} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby="confirmation-title" aria-describedby="confirmation-message" className="w-full max-w-lg rounded-[2rem] bg-[#fffaf2] p-6 shadow-2xl outline-none sm:p-8"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-red-100 text-red-700"><AlertTriangle aria-hidden="true" /></span><h2 id="confirmation-title" className="mt-5 text-3xl font-black">{confirmation.title}</h2><p id="confirmation-message" className="mt-3 text-lg leading-7 text-ink/65">{confirmation.message}</p><div className="mt-7 flex flex-wrap justify-end gap-3"><button ref={initialFocusRef} className="btn-quiet" onClick={onCancel}>{confirmation.cancelLabel ?? 'Cancel'}</button><button className="btn-danger" onClick={confirmation.onConfirm}>{confirmation.confirmLabel}</button></div></section></div>
+}
+
+function Shell({ children, onHome, compact = false, notice, onDismissNotice }: { children: React.ReactNode; onHome: () => void; compact?: boolean; notice: string | null; onDismissNotice: () => void }) {
   return <MotionConfig reducedMotion="user"><main className={`min-h-screen overflow-hidden px-5 sm:px-10 lg:px-16 ${compact ? 'py-4 sm:py-5' : 'py-7'}`}>
     <div className="blob blob-one" /><div className="blob blob-two" />
     <button onClick={onHome} className="brand relative mx-auto flex max-w-6xl items-center text-2xl font-black text-ink" aria-label="JoyHub home">
       <img src={joyHubLogo} alt="" className={compact ? 'h-12 w-12 shrink-0 object-contain drop-shadow-md' : 'brand-logo'} /><span>Joy<span className="text-coral">Hub</span></span>
     </button>
+    {notice && <div className="relative mx-auto mt-4 flex max-w-6xl items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950 shadow-soft" role="alert"><AlertTriangle className="mt-0.5 shrink-0" size={20} aria-hidden="true" /><p className="flex-1 font-bold leading-6">{notice}</p><button className="icon-btn !h-8 !w-8 !bg-amber-100" onClick={onDismissNotice} aria-label="Dismiss message"><X size={17} /></button></div>}
     <AnimatePresence mode="wait"><motion.div key={(children as React.ReactElement).key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="relative mx-auto max-w-6xl">{children}</motion.div></AnimatePresence>
   </main></MotionConfig>
 }
@@ -92,18 +101,47 @@ function PageHeader({ eyebrow, title, text, back }: { eyebrow: string; title: st
 }
 
 export function App() {
-  const [view, setView] = useState<View>(() => storage.getGame() ? 'game' : 'dashboard')
-  const [quizzes, setQuizzes] = useState<Quiz[]>(storage.getQuizzes)
+  const [initialData] = useState(() => {
+    const quizzes = storage.getQuizzes()
+    const classSettings = storage.getClassSettings()
+    const game = storage.getGame()
+    return { quizzes, classSettings, game, notices: storage.takeNotices() }
+  })
+  const initialNotice = initialData.notices.includes('session-recovered')
+    ? 'We couldn’t restore this classroom session. Your quizzes are still available.'
+    : initialData.notices.includes('quizzes-recovered')
+      ? 'Some saved activities couldn’t be loaded. The activities still available are shown.'
+      : initialData.notices.includes('settings-recovered')
+        ? 'We restored the classroom setup with safe defaults. Please review it before starting.'
+        : null
+  const [view, setView] = useState<View>(initialData.game ? 'game' : 'dashboard')
+  const [quizzes, setQuizzes] = useState<Quiz[]>(initialData.quizzes)
   const [draft, setDraft] = useState<QuizDraft | null>(null)
-  const [selectedQuizId, setSelectedQuizId] = useState(() => storage.getGame()?.quizId ?? '')
-  const [classSettings, setClassSettings] = useState<ClassSettings>(storage.getClassSettings)
-  const [game, setGame] = useState<GameState | null>(storage.getGame)
+  const [selectedQuizId, setSelectedQuizId] = useState(initialData.game?.quizId ?? '')
+  const [classSettings, setClassSettings] = useState<ClassSettings>(initialData.classSettings)
+  const [game, setGame] = useState<GameState | null>(initialData.game)
   const [errors, setErrors] = useState<string[]>([])
+  const [notice, setNotice] = useState<string | null>(initialNotice)
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
 
   const goHome = () => setView('dashboard')
-  const saveQuizzes = (next: Quiz[]) => { setQuizzes(next); storage.saveQuizzes(next) }
+  const warnSaveFailed = () => setNotice('We couldn’t save that change. It may be lost if this page is refreshed.')
+  const saveQuizzes = (next: Quiz[]) => { setQuizzes(next); if (!storage.saveQuizzes(next)) warnSaveFailed() }
   const editQuiz = (quiz?: Quiz) => { setDraft(quiz ? structuredClone(quiz) : emptyQuiz()); setErrors([]); setView('editor') }
-  const removeQuiz = (quizId: string) => { if (confirm('Delete this quiz? This cannot be undone.')) saveQuizzes(quizzes.filter(q => q.id !== quizId)) }
+  const removeQuiz = (quizId: string) => {
+    const quiz = quizzes.find(item => item.id === quizId)
+    if (!quiz) return
+    const endsSession = game?.quizId === quizId
+    setConfirmation({
+      title: `Delete “${quiz.title}”?`,
+      message: `This quiz and all of its questions will be permanently deleted.${endsSession ? ' The saved classroom session using it will also end.' : ''}`,
+      confirmLabel: 'Delete Quiz',
+      onConfirm: () => {
+        saveQuizzes(quizzes.filter(item => item.id !== quizId))
+        if (endsSession) { if (!storage.clearGame()) warnSaveFailed(); setGame(null) }
+      },
+    })
+  }
   const validateAndSave = () => {
     if (!draft) return
     const nextErrors: string[] = []
@@ -121,24 +159,38 @@ export function App() {
     saveQuizzes(exists ? quizzes.map(q => q.id === saved.id ? saved : q) : [...quizzes, saved])
     setView('quizzes')
   }
-  const startGame = () => {
+  const performStartGame = () => {
     const count = Math.max(1, Math.min(100, Number(classSettings.studentCount) || 1))
-    if (!selectedQuizId) { setErrors(['Choose a quiz to continue.']); return }
+    const selectedQuiz = quizzes.find(quiz => quiz.id === selectedQuizId)
+    if (!selectedQuiz) { setErrors(['Choose an activity to continue.']); return }
+    if (!isQuizUsable(selectedQuiz)) { setErrors(['Add at least one question before starting this activity.']); return }
     const settings = { ...classSettings, studentCount: count, students: resizeStudents(classSettings.students, count) }
     const next: GameState = { ...settings, quizId: selectedQuizId, currentStudentId: null, winCounts: {}, completedQuestionIds: [] }
-    setClassSettings(settings); storage.saveClassSettings(settings); setGame(next); storage.saveGame(next); setErrors([]); setView('game')
+    setClassSettings(settings); if (!storage.saveClassSettings(settings)) warnSaveFailed(); setGame(next); if (!storage.saveGame(next)) warnSaveFailed(); setErrors([]); setView('game')
+  }
+  const startGame = () => {
+    const selectedQuiz = quizzes.find(quiz => quiz.id === selectedQuizId)
+    if (!selectedQuiz) { setErrors(['Choose an activity to continue.']); return }
+    if (!isQuizUsable(selectedQuiz)) { setErrors(['Add at least one question before starting this activity.']); return }
+    if (game) setConfirmation({ title: 'Start a new classroom activity?', message: 'The current classroom progress will be replaced. Your quizzes will stay available.', cancelLabel: 'Keep Current Activity', confirmLabel: 'Start New Activity', onConfirm: performStartGame })
+    else performStartGame()
   }
   const prepareQuiz = (quizId: string) => { setSelectedQuizId(quizId); setErrors([]); setView('setup') }
-  const endGame = () => { storage.clearGame(); setGame(null); setView('dashboard') }
-  const updateGame = (next: GameState) => { setGame(next); storage.saveGame(next) }
+  const clearSession = (nextView: View) => { if (!storage.clearGame()) warnSaveFailed(); setGame(null); setView(nextView) }
+  const endGame = () => setConfirmation({ title: 'End this classroom game?', message: 'The saved classroom progress will be cleared. Your quizzes will stay available.', cancelLabel: 'Keep Playing', confirmLabel: 'End Game', onConfirm: () => clearSession('dashboard') })
+  const recoverSession = () => clearSession('setup')
+  const updateGame = (next: GameState) => { setGame(next); if (!storage.saveGame(next)) warnSaveFailed() }
+  const restartGame = () => game && setConfirmation({ title: 'Restart this activity?', message: 'Completed questions and student win counts will be cleared so the class can begin again.', cancelLabel: 'Keep Progress', confirmLabel: 'Restart Activity', onConfirm: () => updateGame({ ...game, currentStudentId: null, winCounts: {}, completedQuestionIds: [] }) })
+  const resetWheel = () => game && setConfirmation({ title: 'Reset the classroom wheel?', message: 'Student win counts will be cleared. Completed questions and quiz progress will stay saved.', cancelLabel: 'Keep Win Counts', confirmLabel: 'Reset Wheel', onConfirm: () => updateGame({ ...game, currentStudentId: null, winCounts: {} }) })
+  const feedbackUnavailable = () => setNotice('Sound or spoken feedback isn’t available in this browser. The classroom game will continue normally.')
 
-  return <Shell onHome={goHome} compact={view === 'game'}>
+  return <><Shell onHome={goHome} compact={view === 'game'} notice={notice} onDismissNotice={() => setNotice(null)}>
     {view === 'dashboard' ? <Dashboard key="dashboard" quizCount={quizzes.length} game={game} activeQuiz={quizzes.find(q => q.id === game?.quizId)} onCreate={() => editQuiz()} onManage={() => setView('quizzes')} onStart={() => setView('setup')} onResume={() => setView('game')} /> :
       view === 'quizzes' ? <QuizList key="quizzes" quizzes={quizzes} onBack={goHome} onCreate={() => editQuiz()} onStart={prepareQuiz} onEdit={editQuiz} onDelete={removeQuiz} /> :
       view === 'editor' && draft ? <QuizEditor key="editor" draft={draft} setDraft={setDraft} errors={errors} onBack={() => setView('quizzes')} onSave={validateAndSave} /> :
-      view === 'setup' ? <ClassSetup key="setup" quizzes={quizzes} selected={selectedQuizId} setSelected={setSelectedQuizId} settings={classSettings} setSettings={setClassSettings} errors={errors} onBack={goHome} onStart={startGame} /> :
-      <GameLobby key="game" game={game} quiz={quizzes.find(q => q.id === game?.quizId)} onUpdate={updateGame} onEnd={endGame} onSetup={() => setView('setup')} />}
-  </Shell>
+      view === 'setup' ? <ClassSetup key="setup" quizzes={quizzes} selected={selectedQuizId} setSelected={setSelectedQuizId} settings={classSettings} setSettings={setClassSettings} errors={errors} onBack={goHome} onStart={startGame} onCreateQuiz={() => editQuiz()} onEditQuiz={editQuiz} /> :
+      <GameLobby key="game" game={game} quiz={quizzes.find(q => q.id === game?.quizId)} onUpdate={updateGame} onEnd={endGame} onSetup={() => setView('setup')} onRecover={recoverSession} onRestart={restartGame} onResetWheel={resetWheel} onFeedbackUnavailable={feedbackUnavailable} />}
+  </Shell>{confirmation && <ConfirmDialog confirmation={{ ...confirmation, onConfirm: () => { const action = confirmation.onConfirm; setConfirmation(null); action() } }} onCancel={() => setConfirmation(null)} />}</>
 }
 
 function Dashboard({ quizCount, game, activeQuiz, onCreate, onManage, onStart, onResume }: { quizCount: number; game: GameState | null; activeQuiz?: Quiz; onCreate: () => void; onManage: () => void; onStart: () => void; onResume: () => void }) {
@@ -164,7 +216,7 @@ function Dashboard({ quizCount, game, activeQuiz, onCreate, onManage, onStart, o
 }
 
 function QuizList({ quizzes, onBack, onCreate, onStart, onEdit, onDelete }: { quizzes: Quiz[]; onBack: () => void; onCreate: () => void; onStart: (id: string) => void; onEdit: (q: Quiz) => void; onDelete: (id: string) => void }) {
-  return <><PageHeader eyebrow="Activity library" title="Choose today’s activity" text="Pick a quiz and get the classroom ready to play." back={onBack} />{quizzes.length > 0 ? <><div className="mb-6 flex justify-end"><button className="btn-secondary" onClick={onCreate}><Plus size={19} /> Create Quiz</button></div><div className="grid gap-5 md:grid-cols-2">{quizzes.map(q => <article className="card flex flex-col" key={q.id}><div><span className="inline-flex rounded-full bg-[#e7f6f0] px-3 py-1 text-sm font-bold text-ink">{q.questions.length} {q.questions.length === 1 ? 'question' : 'questions'}</span><h2 className="mt-6 text-2xl font-black">{q.title}</h2><p className="mt-2 min-h-12 leading-6 text-ink/60">{q.description || 'A classroom activity ready to play.'}</p></div><div className="mt-7 flex flex-wrap items-center gap-2 border-t border-ink/10 pt-5"><button className="btn-primary flex-1 justify-center" onClick={() => onStart(q.id)}><Play size={18} fill="currentColor" /> Start Activity</button><button className="btn-quiet" onClick={() => onEdit(q)}><Pencil size={17} /> Edit</button><button className="icon-btn danger" aria-label={`Delete ${q.title}`} onClick={() => onDelete(q.id)}><Trash2 size={18} /></button></div></article>)}</div></> : <section className="card mx-auto max-w-2xl py-12 text-center sm:py-16"><span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-mint"><BookOpen size={28} aria-hidden="true" /></span><p className="eyebrow mt-7 !mb-2">Your activity library is empty</p><h2 className="text-3xl font-black sm:text-4xl">Create your first classroom activity.</h2><p className="mx-auto mt-4 max-w-lg text-lg leading-7 text-ink/60">A quiz gives students questions to choose and answer during the classroom game. Create one now, then it will be ready to start from this library.</p><button className="btn-primary mt-7" onClick={onCreate}><Plus size={19} /> Create Quiz</button></section>}</>
+  return <><PageHeader eyebrow="Activity library" title="Choose today’s activity" text="Pick a quiz and get the classroom ready to play." back={onBack} />{quizzes.length > 0 ? <><div className="mb-6 flex justify-end"><button className="btn-secondary" onClick={onCreate}><Plus size={19} /> Create Quiz</button></div><div className="grid gap-5 md:grid-cols-2">{quizzes.map(q => { const usable = isQuizUsable(q); return <article className="card flex flex-col" key={q.id}><div><span className={`inline-flex rounded-full px-3 py-1 text-sm font-bold text-ink ${usable ? 'bg-[#e7f6f0]' : 'bg-amber-100'}`}>{usable ? `${q.questions.length} ${q.questions.length === 1 ? 'question' : 'questions'}` : 'Needs questions'}</span><h2 className="mt-6 text-2xl font-black">{q.title}</h2><p className="mt-2 min-h-12 leading-6 text-ink/60">{usable ? q.description || 'A classroom activity ready to play.' : 'Add at least one question before starting this classroom activity.'}</p></div><div className="mt-7 flex flex-wrap items-center gap-2 border-t border-ink/10 pt-5"><button className="btn-primary flex-1 justify-center" onClick={() => usable ? onStart(q.id) : onEdit(q)}>{usable ? <><Play size={18} fill="currentColor" /> Start Activity</> : <><Plus size={18} /> Add Questions</>}</button><button className="btn-quiet" onClick={() => onEdit(q)}><Pencil size={17} /> Edit</button><button className="icon-btn danger" aria-label={`Delete ${q.title}`} onClick={() => onDelete(q.id)}><Trash2 size={18} /></button></div></article> })}</div></> : <section className="card mx-auto max-w-2xl py-12 text-center sm:py-16"><span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-mint"><BookOpen size={28} aria-hidden="true" /></span><p className="eyebrow mt-7 !mb-2">Your activity library is empty</p><h2 className="text-3xl font-black sm:text-4xl">Create your first classroom activity.</h2><p className="mx-auto mt-4 max-w-lg text-lg leading-7 text-ink/60">A quiz gives students questions to choose and answer during the classroom game. Create one now, then it will be ready to start from this library.</p><button className="btn-primary mt-7" onClick={onCreate}><Plus size={19} /> Create Quiz</button></section>}</>
 }
 
 function QuizEditor({ draft, setDraft, errors, onBack, onSave }: { draft: QuizDraft; setDraft: (q: QuizDraft) => void; errors: string[]; onBack: () => void; onSave: () => void }) {
@@ -194,7 +246,7 @@ function QuizEditor({ draft, setDraft, errors, onBack, onSave }: { draft: QuizDr
   </div></>
 }
 
-function ClassSetup({ quizzes, selected, setSelected, settings, setSettings, errors, onBack, onStart }: { quizzes: Quiz[]; selected: string; setSelected: (id: string) => void; settings: ClassSettings; setSettings: (settings: ClassSettings) => void; errors: string[]; onBack: () => void; onStart: () => void }) {
+function ClassSetup({ quizzes, selected, setSelected, settings, setSettings, errors, onBack, onStart, onCreateQuiz, onEditQuiz }: { quizzes: Quiz[]; selected: string; setSelected: (id: string) => void; settings: ClassSettings; setSettings: (settings: ClassSettings) => void; errors: string[]; onBack: () => void; onStart: () => void; onCreateQuiz: () => void; onEditQuiz: (quiz: Quiz) => void }) {
   const [showCustomization, setShowCustomization] = useState(false)
   const safeCount = Math.max(1, Math.min(100, Number(settings.studentCount) || 1))
   const students = useMemo(() => resizeStudents(settings.students, safeCount), [safeCount, settings.students])
@@ -208,12 +260,12 @@ function ClassSetup({ quizzes, selected, setSelected, settings, setSettings, err
   const errorId = errors.length ? 'setup-error' : undefined
   return <><PageHeader eyebrow="Classroom setup" title="Prepare today’s activity" text="Choose an activity, set your class size, and you’re ready to play." back={onBack} />
     <ol className="mb-6 grid grid-cols-3 gap-2" aria-label="Classroom setup steps">{['Choose Activity', 'Prepare Class', 'Start Activity'].map((step, index) => <li key={step} className={`rounded-2xl px-3 py-3 text-center text-xs font-black sm:text-sm ${index < 2 ? 'bg-white/75 text-ink' : 'bg-[#fff1ef] text-coral'}`}><span className="mr-1" aria-hidden="true">{index + 1}.</span>{step}</li>)}</ol>
-    <div className="grid items-start gap-6 lg:grid-cols-[1.15fr_.85fr]"><section className="card"><div className="flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-sun font-black" aria-hidden="true">1</span><div><h2 id="quiz-selection-label" className="text-xl font-black">Choose Activity</h2><p className="text-sm font-bold text-ink/50">What will the class play today?</p></div></div><div className="mt-5 space-y-3" role="group" aria-labelledby="quiz-selection-label" aria-describedby={errorId}>{quizzes.map(q => <button key={q.id} type="button" aria-pressed={selected === q.id} onClick={() => setSelected(q.id)} className={`selection ${selected === q.id ? 'selected' : ''}`}><span><strong className="block text-lg">{q.title}</strong><span className="text-sm text-ink/55">{q.questions.length} questions</span></span>{selected === q.id && <Check className="text-coral" aria-hidden="true" />}</button>)}</div>{quizzes.length === 0 && <p className="mt-5 text-ink/60">Create a quiz before starting an activity.</p>}
+    <div className="grid items-start gap-6 lg:grid-cols-[1.15fr_.85fr]"><section className="card"><div className="flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-sun font-black" aria-hidden="true">1</span><div><h2 id="quiz-selection-label" className="text-xl font-black">Choose Activity</h2><p className="text-sm font-bold text-ink/50">What will the class play today?</p></div></div><div className="mt-5 space-y-3" role="group" aria-labelledby="quiz-selection-label" aria-describedby={errorId}>{quizzes.map(q => <button key={q.id} type="button" aria-pressed={selected === q.id} onClick={() => setSelected(q.id)} className={`selection ${selected === q.id ? 'selected' : ''}`}><span><strong className="block text-lg">{q.title}</strong><span className="text-sm text-ink/55">{q.questions.length ? `${q.questions.length} questions` : 'Needs questions before play'}</span></span>{selected === q.id && <Check className="text-coral" aria-hidden="true" />}</button>)}</div>{quizzes.length === 0 && <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5"><strong className="block text-lg">You need a quiz before starting a classroom activity.</strong><p className="mt-2 text-ink/65">Create an activity with at least one question, then return here to prepare the class.</p><button className="btn-primary mt-4" onClick={onCreateQuiz}><Plus size={18} /> Create Quiz</button></div>}
       <div className="mt-8 border-t border-ink/10 pt-7"><div className="flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mint font-black" aria-hidden="true">2</span><div><label className="block text-xl font-black" htmlFor="student-count">Prepare Class</label><p className="text-sm font-bold text-ink/50">How many students are joining?</p></div></div><input id="student-count" className="input mt-5 max-w-40 text-2xl font-black" type="number" min="1" max="100" aria-describedby="student-count-help" value={settings.studentCount} onChange={e => changeCount(Number(e.target.value))} /><p id="student-count-help" className="mt-2 text-sm text-ink/50">Choose between 1 and 100 students.</p></div>
       <button type="button" className="btn-quiet mt-7 w-full justify-between border border-[#eee8dd] !bg-[#fffaf2] text-left" aria-expanded={showCustomization} aria-controls="wheel-customization" onClick={() => setShowCustomization(value => !value)}><span className="flex items-center gap-2"><Pencil size={17} /> Customize wheel <span className="font-bold text-ink/45">(optional)</span></span><span aria-hidden="true">{showCustomization ? '−' : '+'}</span></button>
     </section>
-    <aside className="card lg:sticky lg:top-6"><p className="eyebrow !mb-2">Setup summary</p><h2 className="text-3xl font-black">{selectedQuiz ? 'Ready to start' : 'Choose an activity'}</h2><div className="mt-6 space-y-3 rounded-2xl bg-[#fffaf2] p-5"><div className="flex items-start justify-between gap-4"><span className="text-sm font-bold text-ink/50">Activity</span><strong className="max-w-[70%] text-right">{selectedQuiz?.title ?? 'Not selected'}</strong></div><div className="flex items-center justify-between gap-4"><span className="text-sm font-bold text-ink/50">Class</span><strong>{safeCount} {safeCount === 1 ? 'student' : 'students'}</strong></div><div className="flex items-start justify-between gap-4"><span className="text-sm font-bold text-ink/50">Wheel</span><strong className="max-w-[70%] text-right">{winnerSummary}</strong></div></div>
-      {errors.length > 0 && <div id="setup-error" className="error-box mt-5" role="alert">{errors[0]}</div>}<button className="btn-primary mt-6 w-full justify-center !py-4 text-lg" disabled={!selectedQuiz} onClick={onStart}><Play size={20} fill="currentColor" /> Start Activity</button><p className="mt-3 text-center text-sm font-bold text-ink/45">You can use numbered students now and customize later.</p>
+    <aside className="card lg:sticky lg:top-6"><p className="eyebrow !mb-2">Setup summary</p><h2 className="text-3xl font-black">{selectedQuiz ? isQuizUsable(selectedQuiz) ? 'Ready to start' : 'Add questions to continue' : 'Choose an activity'}</h2><div className="mt-6 space-y-3 rounded-2xl bg-[#fffaf2] p-5"><div className="flex items-start justify-between gap-4"><span className="text-sm font-bold text-ink/50">Activity</span><strong className="max-w-[70%] text-right">{selectedQuiz?.title ?? 'Not selected'}</strong></div><div className="flex items-center justify-between gap-4"><span className="text-sm font-bold text-ink/50">Class</span><strong>{safeCount} {safeCount === 1 ? 'student' : 'students'}</strong></div><div className="flex items-start justify-between gap-4"><span className="text-sm font-bold text-ink/50">Wheel</span><strong className="max-w-[70%] text-right">{winnerSummary}</strong></div></div>
+      {errors.length > 0 && <div id="setup-error" className="error-box mt-5" role="alert">{errors[0]}</div>}{selectedQuiz && !isQuizUsable(selectedQuiz) ? <button className="btn-primary mt-6 w-full justify-center !py-4 text-lg" onClick={() => onEditQuiz(selectedQuiz)}><Plus size={20} /> Add Questions</button> : <button className="btn-primary mt-6 w-full justify-center !py-4 text-lg" disabled={!selectedQuiz} onClick={onStart}><Play size={20} fill="currentColor" /> Start Activity</button>}<p className="mt-3 text-center text-sm font-bold text-ink/45">{selectedQuiz && !isQuizUsable(selectedQuiz) ? 'This activity needs at least one question.' : 'You can use numbered students now and customize later.'}</p>
     </aside></div>
     {showCustomization && <motion.section id="wheel-customization" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card mt-6"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[#f3eee4]"><Pencil size={19} aria-hidden="true" /></span><div><h2 className="text-xl font-black">Customize the wheel</h2><p className="text-sm font-bold text-ink/50">Optional names, colors, icons, and winner rules.</p></div></div>
       <div className="mt-7 grid gap-8 lg:grid-cols-[.75fr_1.25fr]"><div><fieldset><legend className="label">After a student wins</legend><div className="mt-3 space-y-2">{([['unlimited', 'Keep on wheel', 'Students can win countless times.'], ['remove', 'Remove after winning', 'Each student can win once.'], ['limit', 'Set a win limit', 'Allow two, three, or another limit.']] as const).map(([value, title, description]) => <label key={value} className={`selection cursor-pointer ${settings.winnerPolicy === value ? 'selected' : ''}`}><span><strong className="block">{title}</strong><span className="text-sm text-ink/55">{description}</span></span><input type="radio" name="winner-policy" value={value} checked={settings.winnerPolicy === value} onChange={() => setSettings({ ...settings, winnerPolicy: value })} /></label>)}</div></fieldset>{settings.winnerPolicy === 'limit' && <div className="mt-4"><label className="label" htmlFor="max-wins">Wins allowed per student</label><input id="max-wins" className="input max-w-32" type="number" min="2" max="100" value={settings.maxWins} onChange={e => setSettings({ ...settings, maxWins: Math.max(2, Math.min(100, Number(e.target.value) || 2)) })} /></div>}</div>
@@ -221,7 +273,7 @@ function ClassSetup({ quizzes, selected, setSelected, settings, setSettings, err
     </motion.section>}<div className="pb-16" /></>
 }
 
-function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState | null; quiz?: Quiz; onUpdate: (game: GameState) => void; onEnd: () => void; onSetup: () => void }) {
+function GameLobby({ game, quiz, onUpdate, onEnd, onSetup, onRecover, onRestart, onResetWheel, onFeedbackUnavailable }: { game: GameState | null; quiz?: Quiz; onUpdate: (game: GameState) => void; onEnd: () => void; onSetup: () => void; onRecover: () => void; onRestart: () => void; onResetWheel: () => void; onFeedbackUnavailable: () => void }) {
   const [isSpinning, setIsSpinning] = useState(false)
   const [rotation, setRotation] = useState(0)
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null)
@@ -239,7 +291,8 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
     if (selectedAnswer !== null) resultActionRef.current?.focus()
   }, [selectedAnswer])
 
-  if (!game || !quiz) return <section className="py-24 text-center"><h1 className="page-title">No active game</h1><button className="btn-primary mt-8" onClick={onSetup}>Set up a game</button></section>
+  if (!game || !quiz) return <section className="card mx-auto my-16 max-w-2xl py-12 text-center sm:py-16"><span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-sun"><AlertTriangle size={28} aria-hidden="true" /></span><p className="eyebrow mt-7 !mb-2">Classroom recovery</p><h1 className="text-3xl font-black sm:text-4xl">{game ? 'We couldn’t restore this classroom session.' : 'No classroom session is active.'}</h1><p className="mx-auto mt-4 max-w-lg text-lg leading-7 text-ink/60">{game ? 'The activity used by this saved progress is no longer available. Your other quizzes are still available.' : 'Choose an activity and prepare the class to begin a new game.'}</p><button className="btn-primary mt-7" onClick={game ? onRecover : onSetup}><Play size={18} /> {game ? 'Choose Another Activity' : 'Set Up an Activity'}</button></section>
+  if (!quiz.questions.length) return <section className="card mx-auto my-16 max-w-2xl py-12 text-center sm:py-16"><span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-sun"><CircleHelp size={28} aria-hidden="true" /></span><p className="eyebrow mt-7 !mb-2">Activity unavailable</p><h1 className="text-3xl font-black sm:text-4xl">This activity needs a question.</h1><p className="mx-auto mt-4 max-w-lg text-lg leading-7 text-ink/60">Add a question or choose another activity before starting the classroom game.</p><button className="btn-primary mt-7" onClick={onRecover}><ArrowLeft size={18} /> Return to Setup</button></section>
   const currentStudent = game.students.find(student => student.id === game.currentStudentId)
   const eligibleStudents = game.students.filter(student => {
     const wins = game.winCounts[student.id] ?? 0
@@ -256,7 +309,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
     const delta = 1440 + ((target - (rotation % 360) + 360) % 360)
     setIsSpinning(true)
     setRotation(value => value + delta)
-    playWheelSpin()
+    if (!playWheelSpin()) onFeedbackUnavailable()
     window.setTimeout(() => {
       onUpdate({ ...game, currentStudentId: student.id, winCounts: { ...game.winCounts, [student.id]: (game.winCounts[student.id] ?? 0) + 1 } })
       setIsSpinning(false)
@@ -273,18 +326,20 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
     if (!activeQuestion || selectedAnswer !== null) return
     setSelectedAnswer(option)
     const correct = option === activeQuestion.correctAnswer
-    const finishingQuiz = game.completedQuestionIds.length + 1 === quiz.questions.length
-    if (correct) { playCorrectChime(); playCorrectVoice() }
-    else playIncorrectVoice()
-    if (finishingQuiz) window.setTimeout(playQuizCelebration, 1200)
+    const finishingQuiz = quiz.questions.every(question => question.id === activeQuestion.id || game.completedQuestionIds.includes(question.id))
+    const feedbackPlayed = correct ? [playCorrectChime(), playCorrectVoice()].every(Boolean) : playIncorrectVoice()
+    if (!feedbackPlayed) onFeedbackUnavailable()
+    if (finishingQuiz) window.setTimeout(() => { if (!playQuizCelebration()) onFeedbackUnavailable() }, 1200)
     onUpdate({ ...game, currentStudentId: null, completedQuestionIds: [...game.completedQuestionIds, activeQuestion.id] })
   }
   const isCorrect = activeQuestion && selectedAnswer === activeQuestion.correctAnswer
   const displayedCorrectAnswer = activeQuestion ? optionOrder.indexOf(activeQuestion.correctAnswer) : -1
-  const complete = game.completedQuestionIds.length === quiz.questions.length
-  const restart = () => onUpdate({ ...game, currentStudentId: null, winCounts: {}, completedQuestionIds: [] })
+  const complete = quiz.questions.every(question => game.completedQuestionIds.includes(question.id))
+  const completedCount = quiz.questions.filter(question => game.completedQuestionIds.includes(question.id)).length
 
-  return <><header className="flex flex-wrap items-end justify-between gap-4 pb-6 pt-5 sm:pb-8 sm:pt-6"><div><p className="eyebrow !mb-2">Classroom game</p><h1 ref={headingRef} tabIndex={-1} className="text-3xl font-black tracking-tight text-ink outline-none sm:text-4xl lg:text-5xl">{quiz.title}</h1></div><div className="rounded-2xl bg-white/75 px-5 py-3 text-right shadow-soft"><strong className="block text-lg font-black">{game.completedQuestionIds.length} of {quiz.questions.length}</strong><span className="text-sm font-bold text-ink/55">questions complete · saved</span></div></header>
+  if (complete && !activeQuestion) return <section className="card mx-auto my-12 max-w-3xl py-12 text-center sm:py-16"><span className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-sun"><Trophy size={38} aria-hidden="true" /></span><p className="eyebrow mt-7 !mb-2">Activity complete</p><h1 ref={headingRef} tabIndex={-1} className="text-4xl font-black outline-none sm:text-5xl">Great work, everyone!</h1><p className="mx-auto mt-4 max-w-xl text-xl leading-8 text-ink/65">The class completed all {quiz.questions.length} questions in {quiz.title}.</p><div className="mt-8 flex flex-wrap justify-center gap-3"><button className="btn-primary" onClick={onRestart}><RotateCcw size={18} /> Restart Activity</button><button className="btn-quiet" onClick={onEnd}>End Game</button></div></section>
+
+  return <><header className="pb-6 pt-5 sm:pb-8 sm:pt-6"><button className="icon-btn mb-4" onClick={onSetup} aria-label="Back to classroom setup"><ArrowLeft size={20} aria-hidden="true" /></button><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="eyebrow !mb-2">Classroom game</p><h1 ref={headingRef} tabIndex={-1} className="text-3xl font-black tracking-tight text-ink outline-none sm:text-4xl lg:text-5xl">{quiz.title}</h1></div><div className="rounded-2xl bg-white/75 px-5 py-3 text-right shadow-soft"><strong className="block text-lg font-black">{game.completedQuestionIds.length} of {quiz.questions.length}</strong><span className="text-sm font-bold text-ink/55">questions complete · saved</span></div></div></header>
     <div className="grid gap-6 pb-12 lg:grid-cols-[.9fr_1.1fr] xl:grid-cols-[.95fr_1.05fr]">
       <section className="card text-center lg:sticky lg:top-6 lg:self-start">
         <p className="text-base font-extrabold uppercase tracking-[.18em] text-ink/55">Current student</p>
@@ -298,12 +353,12 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
           {isSpinning ? <p className="text-2xl font-black text-coral">Round and round…</p> : currentStudent ? <><p className="text-sm font-extrabold uppercase tracking-[.16em] text-ink/55">Student selected</p><p className="mt-1 break-words text-5xl font-black leading-none text-ink underline decoration-8 underline-offset-8 sm:text-6xl" style={{ textDecorationColor: currentStudent.color }}><span aria-hidden="true">{currentStudent.icon && `${currentStudent.icon} `}</span>{currentStudent.name}</p></> : <><p className="text-2xl font-black text-ink">Ready for the next round?</p><p className="mt-2 text-base font-bold text-ink/55">Spin to choose a student.</p></>}
         </motion.div></AnimatePresence>
         <p className="sr-only" aria-live="polite">{!isSpinning && currentStudent ? `${currentStudent.name} selected.` : ''}</p>
-        <button ref={spinButtonRef} className="btn-primary mt-5 w-full justify-center !py-4 text-lg" onClick={spin} disabled={isSpinning || Boolean(currentStudent) || !eligibleStudents.length}><RotateCw className={isSpinning ? 'animate-spin' : ''} size={22} /> {isSpinning ? 'Spinning…' : currentStudent ? 'Choose a card to continue' : eligibleStudents.length ? game.completedQuestionIds.length ? 'Spin for the next student' : 'Spin the wheel' : 'Everyone reached the limit'}</button>
-        {game.winnerPolicy !== 'unlimited' && <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-[#f7f2e9] px-4 py-3 text-left text-sm"><span><strong className="block">{eligibleStudents.length} eligible</strong><span className="text-ink/55">{game.winnerPolicy === 'remove' ? 'Winners leave the wheel' : `${game.maxWins} wins maximum`}</span></span><button className="btn-quiet !px-3 !py-2" disabled={Boolean(currentStudent)} onClick={() => onUpdate({ ...game, currentStudentId: null, winCounts: {} })}>Reset wheel</button></div>}
-        <details className="mt-5 rounded-2xl border border-ink/10 bg-white/45 text-left"><summary className="cursor-pointer px-4 py-3 text-center text-sm font-extrabold text-ink/50">Teacher controls</summary><div className="flex flex-wrap justify-center gap-2 border-t border-ink/10 p-3"><button className="btn-quiet text-sm" onClick={onSetup}><Pencil size={16} /> Setup</button><button className="btn-quiet text-sm text-red-600" onClick={onEnd}><X size={16} /> End game</button></div></details>
+        <button ref={spinButtonRef} className="btn-primary mt-5 w-full justify-center !py-4 text-lg" onClick={spin} disabled={isSpinning || Boolean(currentStudent) || !eligibleStudents.length}><RotateCw className={isSpinning ? 'animate-spin' : ''} size={22} /> {isSpinning ? 'Spinning…' : currentStudent ? 'Choose a card to continue' : eligibleStudents.length ? completedCount ? 'Spin for the next student' : 'Spin the wheel' : 'Everyone reached the limit'}</button>
+        {game.winnerPolicy !== 'unlimited' && (eligibleStudents.length ? <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-[#f7f2e9] px-4 py-3 text-left text-sm"><span><strong className="block">{eligibleStudents.length} eligible</strong><span className="text-ink/55">{game.winnerPolicy === 'remove' ? 'Winners leave the wheel' : `${game.maxWins} wins maximum`}</span></span><button className="btn-quiet !px-3 !py-2" disabled={Boolean(currentStudent)} onClick={onResetWheel}>Reset wheel</button></div> : <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left"><strong className="block text-lg">Everyone has reached the turn limit.</strong><p className="mt-1 text-sm leading-6 text-ink/60">Reset the wheel to make every student eligible again. Quiz progress will stay saved.</p><button className="btn-secondary mt-3 w-full justify-center" onClick={onResetWheel}><RotateCcw size={17} /> Reset Wheel</button></div>)}
+        <details className="mt-5 rounded-2xl border border-ink/10 bg-white/45 text-left"><summary className="cursor-pointer px-4 py-3 text-center text-sm font-extrabold text-ink/50">Teacher controls</summary><div className="flex flex-wrap justify-center gap-2 border-t border-ink/10 p-3"><button className="btn-quiet text-sm text-red-600" onClick={onEnd}><X size={16} /> End game</button></div></details>
       </section>
       <section className={`card transition ${currentStudent ? '' : 'question-board-locked'}`} aria-labelledby="question-board-title" aria-describedby={!currentStudent ? 'question-board-instruction' : undefined}>
-        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow !mb-2">Question board</p><h2 id="question-board-title" className="text-3xl font-black leading-tight sm:text-4xl">{currentStudent ? `${currentStudent.name}, choose a question card.` : 'Spin the wheel to choose a student.'}</h2></div><span className="rounded-full bg-[#f7f2e9] px-4 py-2 text-base font-black">{quiz.questions.length - game.completedQuestionIds.length} remaining</span></div>
+        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="eyebrow !mb-2">Question board</p><h2 id="question-board-title" className="text-3xl font-black leading-tight sm:text-4xl">{currentStudent ? `${currentStudent.name}, choose a question card.` : 'Spin the wheel to choose a student.'}</h2></div><span className="rounded-full bg-[#f7f2e9] px-4 py-2 text-base font-black">{quiz.questions.length - completedCount} remaining</span></div>
         {!currentStudent && <div id="question-board-instruction" className="mt-6 rounded-2xl border-2 border-dashed border-[#e6dcca] bg-[#fffaf2] p-6 text-center"><RotateCw className="mx-auto text-coral" size={28} aria-hidden="true" /><p className="mt-3 text-2xl font-black">Spin the wheel to choose a student.</p><p className="mt-2 text-base font-bold text-ink/60">Question cards unlock after the wheel stops.</p></div>}
         <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{quiz.questions.map((question, index) => { const used = game.completedQuestionIds.includes(question.id); const locked = !currentStudent || isSpinning; return <motion.button layout key={question.id} whileHover={used || locked ? undefined : { y: -5, rotate: -1 }} whileTap={used || locked ? undefined : { scale: .96 }} disabled={used || locked} onClick={() => chooseCard(question)} className={`question-card ${used ? 'used' : locked ? 'locked' : ''}`}><span className="card-shine" />{used ? <><Check size={34} /><span className="text-base">Completed</span></> : <><CircleHelp size={34} /><span className="text-4xl sm:text-5xl">{index + 1}</span></>}</motion.button> })}</div>
       </section>
@@ -324,7 +379,7 @@ function GameLobby({ game, quiz, onUpdate, onEnd, onSetup }: { game: GameState |
         <h2 id="question-title" className="relative mt-2 text-4xl font-black sm:text-5xl">{isCorrect ? 'Excellent! Great job!' : 'Good try! You’ve got this.'}</h2>
         {!isCorrect && <div className="result-answer"><span>{String.fromCharCode(65 + displayedCorrectAnswer)}</span><strong>{activeQuestion.options[activeQuestion.correctAnswer]}</strong></div>}
         <p className="relative mx-auto mt-5 max-w-2xl text-lg font-semibold leading-8 text-ink/75 sm:text-xl">{activeQuestion.explanation}</p>
-        {complete ? <div className="relative mt-5 border-t border-ink/10 pt-5"><p className="font-black">Great job, everyone! 👏 You completed the quiz.</p><div className="mt-4 flex flex-wrap justify-center gap-3"><button ref={resultActionRef} className="btn-secondary" onClick={() => { closeQuestion(); restart() }}><RotateCcw size={18} /> Restart</button><button className="btn-quiet" onClick={onEnd}>Dashboard</button></div></div> : <button ref={resultActionRef} className="btn-primary relative mt-6" onClick={closeQuestion}><RotateCw size={18} /> Spin for the next student</button>}
+        {complete ? <div className="relative mt-5 border-t border-ink/10 pt-5"><p className="font-black">Great job, everyone! 👏 You completed the quiz.</p><div className="mt-4 flex flex-wrap justify-center gap-3"><button ref={resultActionRef} className="btn-secondary" onClick={() => { closeQuestion(); onRestart() }}><RotateCcw size={18} /> Restart Activity</button><button className="btn-quiet" onClick={onEnd}>End Game</button></div></div> : <button ref={resultActionRef} className="btn-primary relative mt-6" onClick={closeQuestion}><RotateCw size={18} /> Spin for the next student</button>}
       </motion.div>}</AnimatePresence>
     </motion.section></motion.div>}</AnimatePresence>
   </>

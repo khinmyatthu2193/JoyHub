@@ -1,6 +1,6 @@
 # JoyHub Project Status
 
-Last updated: 2026-08-31
+Last updated: 2026-09-02
 
 Status legend: `[ ]` planned · `[~]` in progress · `[x]` complete
 
@@ -8,7 +8,7 @@ Status legend: `[ ]` planned · `[~]` in progress · `[x]` complete
 
 - Current phase: Phase 5 — Completion and polish
 - Overall status: In progress
-- Next task: Finish empty/error states and the accessibility QA pass
+- Next task: Complete final responsive and browser QA
 - MVP scope: See `PRODUCT_SPEC.md`
 
 ## Phase 1 — Foundation
@@ -80,8 +80,9 @@ Acceptance checks:
 - [x] Classroom activity library with direct launch actions and guided empty state
 - [x] Projector-focused gameplay stage with compact chrome and prominent student action
 - [x] Classroom-scale question, answer, and feedback presentation
-- [ ] Empty, error, and confirmation states
-- [~] Accessibility and keyboard pass
+- [x] Empty, error, and confirmation states
+- [x] Accessibility and keyboard pass
+- [x] Place classroom setup navigation at the top of the game screen
 - [ ] Final responsive QA
 
 Acceptance checks:
@@ -113,6 +114,7 @@ Acceptance checks:
 | 2026-09-02 | Treat the quiz library as an activity picker | Makes Start Activity dominant on each quiz and gives an empty library a clear explanation and direct creation action. |
 | 2026-09-02 | Prioritize the gameplay stage on projectors | Compacts game chrome, enlarges the wheel and selected student, and places setup and exit actions behind quieter teacher controls without adding a separate mode. |
 | 2026-09-02 | Scale question moments for the whole classroom | Enlarges question, answer, correct-answer, explanation, and feedback surfaces while retaining the existing modal flow and animations. |
+| 2026-09-02 | Recover safely from unavailable classroom state | Adds guided empty and recovery actions, accessible destructive confirmations, basic persisted-data validation, and non-blocking failure notices without changing schemas or game rules. |
 
 ## Update template
 
